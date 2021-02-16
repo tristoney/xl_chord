@@ -111,7 +111,8 @@ message MultiDeleteReq {
 
 message MultiDeleteResp {
     repeated string keys = 1;
-    BaseResp baseResp = 2;
+    int32 affected_keys = 2;
+    BaseResp baseResp = 3;
 }
 
 message GetKeysReq {

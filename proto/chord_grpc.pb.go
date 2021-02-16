@@ -162,7 +162,7 @@ func (c *chordClient) GetKeys(ctx context.Context, in *GetKeysReq, opts ...grpc.
 }
 
 // ChordServer is the server API for Chord service.
-// All implementations must embed UnimplementedChordServer
+// All implementations should embed UnimplementedChordServer
 // for forward compatibility
 type ChordServer interface {
 	// GetPredecessor returns the node that is considered to be the current node's predecessor
@@ -190,10 +190,9 @@ type ChordServer interface {
 	MultiDelete(context.Context, *MultiDeleteReq) (*MultiDeleteResp, error)
 	// GetKeys returns the k-v pairs between the given range of the Chord ring
 	GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error)
-	mustEmbedUnimplementedChordServer()
 }
 
-// UnimplementedChordServer must be embedded to have forward compatible implementations.
+// UnimplementedChordServer should be embedded to have forward compatible implementations.
 type UnimplementedChordServer struct {
 }
 
@@ -233,7 +232,6 @@ func (UnimplementedChordServer) MultiDelete(context.Context, *MultiDeleteReq) (*
 func (UnimplementedChordServer) GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetKeys not implemented")
 }
-func (UnimplementedChordServer) mustEmbedUnimplementedChordServer() {}
 
 // UnsafeChordServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ChordServer will

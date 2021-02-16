@@ -1,4 +1,4 @@
-package finger
+package fingerTable
 
 import (
 	"github.com/tristoney/xl_chord/proto"
@@ -23,9 +23,28 @@ func GetID(n []byte, i, m int) []byte {
 
 	two := big.NewInt(2)
 	offset := (&big.Int{}).Exp(two, big.NewInt(int64(i)), nil)
-	sum := (&big.Int{}).Add(bigN, offset)
+	sum := (&big.Int{}).Add(bigN, offset)		// n + 2^i
 
-	mod := (&big.Int{}).Exp(two, big.NewInt(int64(m)), nil)
+	mod := (&big.Int{}).Exp(two, big.NewInt(int64(m)), nil) // 2^m
 
-	res := (&big.Int{}).Mod(sum, mod)
+	res := (&big.Int{}).Mod(sum, mod).Bytes()	// (n+2^i) mod 2^m
+
+	return res
+}
+
+// NewFinger returns a new Finger object with id and node item
+func NewFinger(id []byte, node *proto.Node) *Finger {
+	return &Finger{
+		ID:        id,
+		Successor: node,
+	}
+}
+
+// NewFingerTable returns a new FingerTable of the given node with default successor (nil)
+func NewFingerTable(node *proto.Node, hashSize int) FingerTable {
+	table := make([]*Finger, hashSize)
+	for i := 0; i < hashSize; i++ {
+		table[i] = NewFinger(GetID(node.Id, i, hashSize), nil)
+	}
+	return table
 }

@@ -18,6 +18,7 @@ import (
 // Transport is the component of communication
 // Which allows nodes to contact with each other
 type Transport interface {
+	Init(*node.Config, interface{}) error	// Init the transport
 	Start() error // Start start the communication of current node
 	Stop() error  // Stop shut the communication of current node
 
@@ -376,4 +377,46 @@ func (g *GrpcTransport) GetKeys(node *dto.Node, from []byte, to []byte) ([]*dto.
 		dtoPairs = append(dtoPairs, &dtoPair)
 	}
 	return dtoPairs, nil
+}
+
+func (g *GrpcTransport) CheckAlive(node *dto.Node) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return chorderr.ErrPredecessorFailed
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	pong, err := client.CheckAlive(ctx, &proto.ER{})
+	if err != nil || pong == nil {
+		return chorderr.ErrPredecessorFailed
+	}
+	return nil
+}
+
+func (g *GrpcTransport) Init(config *node.Config, server interface{}) error {
+	if config == nil {
+		return chorderr.ErrInvalidConfig
+	}
+	// start the listener
+	listener, err := net.Listen("tcp", config.Addr)
+	if err != nil {
+		return err
+	}
+
+	g.config = config
+	g.timeout = config.Timeout
+	g.sock = listener.(*net.TCPListener)
+	g.pool = make(map[string]*GrpcConn)
+	g.server = grpc.NewServer(config.ServerOptions...)
+	g.shutDown = 0
+
+	n, ok := server.(*node.Node)
+	if !ok {
+		return chorderr.ErrParamError
+	}
+	n.Transport = g
+
+	proto.RegisterChordServer(g.server, n)
+
+	return nil
 }

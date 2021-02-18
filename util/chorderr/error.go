@@ -9,7 +9,11 @@ var (
 	ErrDataNotExist      = BaseError{-1, "data do not exist"}
 	ErrInvalidConfig     = BaseError{-2, "config is empty or invalid"}
 	ErrTransportShutdown = BaseError{-3, "tcp transport is shutdown"}
-	ErrNilPool            = BaseError{-4, "pool is empty"}
+	ErrNilPool           = BaseError{-4, "pool is empty"}
+	ErrNodeExist         = BaseError{-5, "node already exists"}
+	ErrSuccessorNotExist = BaseError{-6, "successor not exists"}
+	ErrPredecessorFailed = BaseError{-7, "predecessor has failed"}
+	ErrParamError        = BaseError{-20, "param error"}
 )
 
 type BaseError struct {

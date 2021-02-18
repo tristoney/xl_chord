@@ -33,6 +33,15 @@ service Chord {
     rpc MultiDelete(MultiDeleteReq) returns (MultiDeleteResp);
     // GetKeys returns the k-v pairs between the given range of the Chord ring
     rpc GetKeys(GetKeysReq) returns (GetKeysResp);
+
+    rpc CheckAlive(ER) returns (Pong);
+}
+
+message ER {
+}
+
+message Pong {
+    int64 ts = 1;
 }
 
 message Node {

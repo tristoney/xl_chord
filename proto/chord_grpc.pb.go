@@ -43,6 +43,7 @@ type ChordClient interface {
 	MultiDelete(ctx context.Context, in *MultiDeleteReq, opts ...grpc.CallOption) (*MultiDeleteResp, error)
 	// GetKeys returns the k-v pairs between the given range of the Chord ring
 	GetKeys(ctx context.Context, in *GetKeysReq, opts ...grpc.CallOption) (*GetKeysResp, error)
+	CheckAlive(ctx context.Context, in *ER, opts ...grpc.CallOption) (*Pong, error)
 }
 
 type chordClient struct {
@@ -161,6 +162,15 @@ func (c *chordClient) GetKeys(ctx context.Context, in *GetKeysReq, opts ...grpc.
 	return out, nil
 }
 
+func (c *chordClient) CheckAlive(ctx context.Context, in *ER, opts ...grpc.CallOption) (*Pong, error) {
+	out := new(Pong)
+	err := c.cc.Invoke(ctx, "/Chord/CheckAlive", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChordServer is the server API for Chord service.
 // All implementations should embed UnimplementedChordServer
 // for forward compatibility
@@ -190,6 +200,7 @@ type ChordServer interface {
 	MultiDelete(context.Context, *MultiDeleteReq) (*MultiDeleteResp, error)
 	// GetKeys returns the k-v pairs between the given range of the Chord ring
 	GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error)
+	CheckAlive(context.Context, *ER) (*Pong, error)
 }
 
 // UnimplementedChordServer should be embedded to have forward compatible implementations.
@@ -231,6 +242,9 @@ func (UnimplementedChordServer) MultiDelete(context.Context, *MultiDeleteReq) (*
 }
 func (UnimplementedChordServer) GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetKeys not implemented")
+}
+func (UnimplementedChordServer) CheckAlive(context.Context, *ER) (*Pong, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckAlive not implemented")
 }
 
 // UnsafeChordServer may be embedded to opt out of forward compatibility for this service.
@@ -460,6 +474,24 @@ func _Chord_GetKeys_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chord_CheckAlive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ER)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).CheckAlive(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/CheckAlive",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).CheckAlive(ctx, req.(*ER))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Chord_ServiceDesc is the grpc.ServiceDesc for Chord service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -514,6 +546,10 @@ var Chord_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetKeys",
 			Handler:    _Chord_GetKeys_Handler,
+		},
+		{
+			MethodName: "CheckAlive",
+			Handler:    _Chord_CheckAlive_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,20 +1,20 @@
 package storage
 
 import (
+	"bytes"
+	"github.com/tristoney/xl_chord/dto"
+	"github.com/tristoney/xl_chord/util"
 	"github.com/tristoney/xl_chord/util/chorderr"
 	"hash"
 )
 
-type Pair struct {
-	Key   string
-	Value string
-}
 
 type Storage interface {
 	Get(string) ([]byte, error) // Get the base-64 encoded value of key
 	Set(string, string) (string, error)	// Set the base-64 encoded value to the key
 	Delete(string) (string, error) // Delete the k-v pair
-	Between(string, string) ([]*Pair, error) // Get k-v pairs between the range
+	Between(string, string) ([]*dto.Pair, error) // Get k-v pairs between the range
+	Smaller(string) ([]*dto.Pair, error) // Get k-v pairs smaller than the up_bound
 	MDelete(...string) ([]string, int, error) // MDelete delete a list of k-v pair
 }
 
@@ -55,8 +55,38 @@ func (m *MappedData) MDelete(keys ...string) ([]string, int, error) {
 	return keys, len(keys), nil
 }
 
-func (m *MappedData) Between(from, to string) ([]*Pair, error) {
-	pairs := make([]*Pair, 0)
-	// todo hash between
+func (m *MappedData) Between(from, to string) ([]*dto.Pair, error) {
+	pairs := make([]*dto.Pair, 0)
+	for k, v := range m.data {
+		hashedKey, err := util.HashKey(k, m.hashFunc)
+		if err != nil {
+			continue
+		}
+		if util.RightClosedBetween(hashedKey, []byte(from), []byte(to)) {
+			pair := &dto.Pair{
+				Key:   k,
+				Value: string(v),
+			}
+			pairs = append(pairs, pair)
+		}
+	}
+	return pairs, nil
+}
+
+func (m *MappedData) Smaller(upBound string) ([]*dto.Pair, error) {
+	pairs := make([]*dto.Pair, 0)
+	for k, v := range m.data {
+		hashedKey, err := util.HashKey(k, m.hashFunc)
+		if err != nil {
+			continue
+		}
+		if bytes.Compare(hashedKey, []byte(upBound)) <= 0 {
+			pair := &dto.Pair{
+				Key:   k,
+				Value: string(v),
+			}
+			pairs = append(pairs, pair)
+		}
+	}
 	return pairs, nil
 }

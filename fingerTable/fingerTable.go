@@ -1,7 +1,7 @@
 package fingerTable
 
 import (
-	"github.com/tristoney/xl_chord/proto"
+	"github.com/tristoney/xl_chord/dto"
 	"math/big"
 )
 
@@ -12,7 +12,7 @@ type FingerTable []*Finger
 // in the chord ring and the successor(k)
 type Finger struct {
 	ID        []byte
-	Successor *proto.Node
+	Successor *dto.Node
 }
 
 // GetID computes the hashed identifier of id(n + 2^i) mod 2^m with
@@ -33,7 +33,7 @@ func GetID(n []byte, i, m int) []byte {
 }
 
 // NewFinger returns a new Finger object with id and node item
-func NewFinger(id []byte, node *proto.Node) *Finger {
+func NewFinger(id []byte, node *dto.Node) *Finger {
 	return &Finger{
 		ID:        id,
 		Successor: node,
@@ -41,10 +41,10 @@ func NewFinger(id []byte, node *proto.Node) *Finger {
 }
 
 // NewFingerTable returns a new FingerTable of the given node with default successor (nil)
-func NewFingerTable(node *proto.Node, hashSize int) FingerTable {
+func NewFingerTable(node *dto.Node, hashSize int) FingerTable {
 	table := make([]*Finger, hashSize)
 	for i := 0; i < hashSize; i++ {
-		table[i] = NewFinger(GetID(node.Id, i, hashSize), nil)
+		table[i] = NewFinger(GetID(node.ID, i, hashSize), nil)
 	}
 	return table
 }

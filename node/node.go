@@ -48,7 +48,7 @@ func DefaultConfig() *Config {
 
 func (c *Config) Validate() error {
 	// todo add config check
-	return nil
+	return nl
 }
 
 type Node struct {
@@ -157,6 +157,7 @@ func NewNode(cnf *Config, peer *dto.Node, storage storage.Storage, transport tra
 			}
 		}
 	}()
+	return node, nil
 }
 
 // internal methods

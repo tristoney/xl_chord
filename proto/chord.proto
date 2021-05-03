@@ -7,130 +7,114 @@ option go_package = "github.com/tristoney/xl_chord/proto";
 // a Chord cluster via RPC (remote procedure call)
 
 service Chord {
-    // GetPredecessor returns the node that is considered to be the current node's predecessor
-    rpc GetPredecessor (BaseReq) returns (NodeResp);
-    // GetSuccessor returns the node that is considered to be the current node's successor
-    rpc GetSuccessor (BaseReq) returns (NodeResp);
-    // Notify tell the Chord server that the Node think it is the predecessor, which
-    // has the potential to initiate the transferring of keys
-    rpc Notify (NodeReq) returns (BaseResp);
-    // FindSuccessor finds the node's successor by ID
-    rpc FindSuccessor (IDReq) returns (NodeResp);
-    // CheckPredecessor checks if the predecessor alive
-    rpc ChekPredecessor (IDReq) returns (BaseResp);
-    // SetPredecessor sets the predecessor for a node
-    rpc SetPredecessor (NodeReq) returns (BaseResp);
-    // SetSuccessor sets the successor for a node
-    rpc SetSuccessor (NodeReq) returns (BaseResp);
-
-    // GetVal returns the value in the Chord ring for a given key
-    rpc GetVal (GetValReq) returns (GetValResp);
-    // SetKey writes a k-v pair to the chord ring
-    rpc SetKey(SetKeyReq) returns (SetKeyResp);
-    // DeleteKey delete the k-v pair of the chord ring
-    rpc DeleteKey(DeleteKeyReq) returns (DeleteKeyResp);
-    // MultiDelete delete the k-v pairs of the chord ring;
-    rpc MultiDelete(MultiDeleteReq) returns (MultiDeleteResp);
-    // GetKeys returns the k-v pairs between the given range of the Chord ring
-    rpc GetKeys(GetKeysReq) returns (GetKeysResp);
-
-    rpc CheckAlive(ER) returns (Pong);
-}
-
-message ER {
-}
-
-message Pong {
-    int64 ts = 1;
+  rpc CheckAlive(CheckAliveReq) returns (CheckAliveResp);
+  rpc FindSuccessor(FindSuccessorReq) returns (FindSuccessorResp);
+  rpc GetPredecessor(GetPredecessorReq) returns(GetPredecessorResp);
+  rpc Notify(NotifyReq) returns(NotifyResp);
+  rpc FindSuccessorFinger(FindSuccessorFingerReq) returns(FindSuccessorFingerResp);
+  rpc GetSuccessorList(GetSuccessorListReq) returns(GetSuccessorListResp);
+  rpc StoreKey(StoreKeyReq) returns(StoreKeyResp);
+  rpc FindKey(FindKeyReq) returns(FindKeyResp);
+  rpc DeleteKey(DeleteKeyReq) returns(DeleteKeyResp);
+  rpc TakeOverKeys(TakeOverKeysReq) returns(TakeOverKeysResp);
 }
 
 message Node {
-    bytes id = 1; // Node's identifier
-    string addr = 2; // Node's socket ip:port
+  bytes id = 1;
+  string addr = 2;
 }
 
-message NodeReq {
-    Node node = 1;
-    BaseReq base = 2;
+message CheckAliveReq {}
+
+message CheckAliveResp {
+  string pong = 1;
 }
 
-message NodeResp {
-    Node node = 1;
-    BaseResp baseResp = 2;
+message FindSuccessorReq {
+  bytes id = 1;
 }
 
-// Empty Request struct for some method
-// that do not need to send extra information
-// except the node itself
-message BaseReq {
-    int64 ts = 1; // 时间戳
+message FindSuccessorResp {
+  Node successor = 1;
 }
 
-message BaseResp {
-    int32 err_no = 1;
-    string err_tips = 2;
-    int64 ts = 3;
+message GetPredecessorReq {
 }
 
-message IDReq {
-    bytes id = 1;
-    BaseReq base = 2;
+message GetPredecessorResp {
+  Node predecessor = 1;
 }
 
-message GetValReq {
-    string key = 1;
-    BaseReq base = 2;
+message NotifyReq {
+  Node node = 1;
 }
 
-message GetValResp {
-    bytes value = 1;
-    BaseResp baseResp = 2;
+message NotifyResp {}
+
+message FindSuccessorFingerReq {
+  int32 index = 1;
+  bytes finger_id = 2;
+}
+
+message FindSuccessorFingerResp {
+  int32 index = 1;
+  bytes finger_id = 2;
+  bool found = 3;
+  Node next_node = 4; // if found, next_node is the target node, otherwise it's the next_node to query finger table
+}
+
+message GetSuccessorListReq {
+}
+
+message GetSuccessorListResp {
+  repeated Node successor_list = 1;
 }
 
 message Pair {
-    string key = 1;
-    string value = 2;
+  string key = 1;
+  string value = 2;
 }
 
-message SetKeyReq {
-    Pair pair = 1;
-    BaseReq base = 2;
+message Data {
+  bytes key_id = 1;
+  Pair entry = 2;
 }
 
-message SetKeyResp {
-    bytes id = 1;
-    BaseResp baseResp = 2;
+message StoreKeyReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message StoreKeyResp {
+  bool located = 1; // true if the key is located the right place, false if key needs to be pass to next
+  Node next_node = 2;
+}
+
+message FindKeyReq {
+  bytes key_id = 1;
+}
+
+message FindKeyResp {
+  bool located = 1;
+  bytes key_id = 2;
+  Pair entry = 3;
+  Node next_node = 4;
 }
 
 message DeleteKeyReq {
-    string key = 1;
-    BaseReq base = 2;
+  bytes key_id = 1;
 }
 
 message DeleteKeyResp {
-    string key = 1;
-    bytes id = 2;
-    BaseResp baseResp = 3;
+  bool located = 1;
+  bool key_exist = 2;
+  bytes key_id = 3;
+  Node next_node = 4;
 }
 
-message MultiDeleteReq {
-    repeated string keys = 1;
-    BaseReq base = 2;
+message TakeOverKeysReq {
+  repeated Data data = 1;
 }
 
-message MultiDeleteResp {
-    repeated string keys = 1;
-    int32 affected_keys = 2;
-    BaseResp baseResp = 3;
-}
+message TakeOverKeysResp {}
 
-message GetKeysReq {
-    bytes from = 1;
-    bytes to = 2;
-    BaseReq base = 3;
-}
-
-message GetKeysResp {
-    repeated Pair pairs = 1;
-    BaseResp baseResp = 2;
-}

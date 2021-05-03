@@ -3,7 +3,14 @@ package util
 import (
 	"bytes"
 	"hash"
+	"math/big"
 )
+
+var bigInt *big.Int
+
+func init() {
+	bigInt = &big.Int{}
+}
 
 func IsEqual(a, b []byte) bool {
 	return bytes.Compare(a, b) == 0
@@ -28,12 +35,16 @@ func RightClosedBetween(key, a, b []byte) bool {
 }
 
 // HashKey returns the hashed key
-func HashKey(key string, hashFunc func() hash.Hash) ([]byte, error) {
+func GetHashKey(key string, hashFunc func() hash.Hash) []byte {
 	h := hashFunc()
 	if _, err := h.Write([]byte(key)); err != nil {
-		return nil, err
+		return nil
 	}
 	val := h.Sum(nil)
-	return val, nil
+	return val
+}
+
+func ToBig(n []byte) *big.Int {
+	return bigInt.SetBytes(n)
 }
 

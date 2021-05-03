@@ -2,13 +2,12 @@ package transport
 
 import (
 	"context"
-	"github.com/mitchellh/mapstructure"
 	"github.com/tristoney/xl_chord/dto"
 	"github.com/tristoney/xl_chord/node"
 	"github.com/tristoney/xl_chord/proto"
-	"github.com/tristoney/xl_chord/util"
 	"github.com/tristoney/xl_chord/util/chorderr"
 	"google.golang.org/grpc"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -18,25 +17,23 @@ import (
 // Transport is the component of communication
 // Which allows nodes to contact with each other
 type Transport interface {
-	Init(*node.Config, interface{}) error	// Init the transport
-	Start() error // Start start the communication of current node
-	Stop() error  // Stop shut the communication of current node
+	Init(*node.Config, interface{}) error // Init the transport
+	Start() error                         // Start start the communication of current node
+	Stop() error                          // Stop shut the communication of current node
 
 	// interactive communication
-	GetPredecessor(*dto.Node) (*dto.Node, error)
-	GetSuccessor(*dto.Node) (*dto.Node, error)
-	Notify(*dto.Node, *dto.Node) error
-	FindSuccessor(*dto.Node, []byte) (*dto.Node, error)
-	CheckPredecessor(*dto.Node) error
-	SetPredecessor(*dto.Node, *dto.Node) error
-	SetSuccessor(*dto.Node, *dto.Node) error
+	CheckAlive(node *dto.Node) error
+	FindSuccessor(node *dto.Node, id []byte) (*dto.Node, error)
+	GetPredecessor(node *dto.Node) (*dto.Node, error)
+	Notify(node *dto.Node, pred *dto.Node) error
+	FindSuccessorFinger(node *dto.Node, index int32, fingerID []byte) (*dto.FindSuccessorFingerResp, error)
+	GetSuccessorList(node *dto.Node) ([]*dto.Node, error)
 
 	// storage access
-	GetVal(*dto.Node, string) ([]byte, error)
-	SetKey(*dto.Node, *dto.Pair) ([]byte, error)
-	DeleteKey(*dto.Node, string) (string, []byte, error)
-	MultiDelete(*dto.Node, []string) ([]string, error)
-	GetKeys(*dto.Node, []byte, []byte) ([]*dto.Pair, error)
+	StoreKey(node *dto.Node, keyID []byte, key, value string) (*dto.StoreKeyResp, error)
+	FindKey(node *dto.Node, keyID []byte) (*dto.FindKeyResp, error)
+	DeleteKey(node *dto.Node, keyID []byte) (*dto.DeleteKeyResp, error)
+	TakeOverKeys(node *dto.Node, data []*dto.Data) error
 }
 
 type GrpcConn struct {
@@ -162,6 +159,46 @@ func (g *GrpcTransport) Stop() error {
 	return nil
 }
 
+func (g *GrpcTransport) CheckAlive(node *dto.Node) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		log.Fatalf("Node {%s} has failed", string(node.ID))
+		return chorderr.ErrNodeFailed
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	pong, err := client.CheckAlive(ctx, &proto.CheckAliveReq{})
+	if err != nil || pong == nil {
+		log.Fatalf("Node {%s} has failed", string(node.ID))
+		return chorderr.ErrNodeFailed
+	}
+	return nil
+}
+
+func (g *GrpcTransport) FindSuccessor(node *dto.Node, id []byte) (*dto.Node, error) {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	resp, err := client.FindSuccessor(ctx, &proto.FindSuccessorReq{
+		Id: id,
+	})
+	if err != nil {
+		return nil, err
+	}
+	n := resp.Successor
+	if n == nil {
+		return nil, chorderr.ErrNoValidResp
+	}
+	return &dto.Node{
+		ID:   n.Id,
+		Addr: n.GetAddr(),
+	}, nil
+
+}
+
 func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
@@ -169,29 +206,14 @@ func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	resp, err := client.GetPredecessor(ctx, util.NewBaseReq())
+	resp, err := client.GetPredecessor(ctx, &proto.GetPredecessorReq{})
 	if err != nil {
 		return nil, err
 	}
-	n := resp.GetNode()
-	return &dto.Node{
-		ID:   n.GetId(),
-		Addr: n.GetAddr(),
-	}, nil
-}
-
-func (g *GrpcTransport) GetSuccessor(node *dto.Node) (*dto.Node, error) {
-	client, err := g.getConnection(node.Addr)
-	if err != nil {
-		return nil, err
+	n := resp.Predecessor
+	if n == nil {
+		return nil, chorderr.ErrNoValidResp
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	resp, err := client.GetPredecessor(ctx, util.NewBaseReq())
-	if err != nil {
-		return nil, err
-	}
-	n := resp.GetNode()
 	return &dto.Node{
 		ID:   n.GetId(),
 		Addr: n.GetAddr(),
@@ -205,190 +227,160 @@ func (g *GrpcTransport) Notify(node *dto.Node, pred *dto.Node) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	_, err = client.Notify(ctx, &proto.NodeReq{
+	_, err = client.Notify(ctx, &proto.NotifyReq{
 		Node: &proto.Node{
 			Id:   pred.ID,
 			Addr: pred.Addr,
 		},
-		Base: util.NewBaseReq(),
 	})
 	return err
 }
 
-func (g *GrpcTransport) FindSuccessor(node *dto.Node, id []byte) (*dto.Node, error) {
+func (g *GrpcTransport) FindSuccessorFinger(node *dto.Node, index int32, fingerID []byte) (*dto.FindSuccessorFingerResp, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	resp, err := client.FindSuccessor(ctx, &proto.IDReq{
-		Id:   id,
-		Base: util.NewBaseReq(),
+	resp, err := client.FindSuccessorFinger(ctx, &proto.FindSuccessorFingerReq{
+		Index:    index,
+		FingerId: fingerID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	n := resp.GetNode()
-	return &dto.Node{
-		ID:   n.Id,
-		Addr: n.GetAddr(),
+	return &dto.FindSuccessorFingerResp{
+		Index:    resp.GetIndex(),
+		FingerID: resp.GetFingerId(),
+		Found:    resp.GetFound(),
+		NextNode: &dto.Node{
+			ID:   resp.GetNextNode().GetId(),
+			Addr: resp.GetNextNode().GetAddr(),
+		},
 	}, nil
 }
 
-func (g *GrpcTransport) CheckPredecessor(node *dto.Node) error {
+func (g *GrpcTransport) GetSuccessorList(node *dto.Node) ([]*dto.Node, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	_, err = client.ChekPredecessor(ctx, &proto.IDReq{
-		Id:   node.ID,
-		Base: util.NewBaseReq(),
-	})
-	return err
+	resp, err := client.GetSuccessorList(ctx, &proto.GetSuccessorListReq{})
+	if err != nil {
+		return nil, err
+	}
+	successorList := make([]*dto.Node, 0)
+	for _, n := range resp.GetSuccessorList() {
+		successorList = append(successorList, &dto.Node{
+			ID:   n.Id,
+			Addr: n.Addr,
+		})
+	}
+	return successorList, nil
 }
 
-func (g *GrpcTransport) SetPredecessor(node *dto.Node, pred *dto.Node) error {
+func (g *GrpcTransport) StoreKey(node *dto.Node, keyID []byte, key, value string) (*dto.StoreKeyResp, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	_, err = client.SetPredecessor(ctx, &proto.NodeReq{
-		Node: &proto.Node{
-			Id:   pred.ID,
-			Addr: pred.Addr,
+	resp, err := client.StoreKey(ctx, &proto.StoreKeyReq{
+		KeyId: keyID,
+		Entry: &proto.Pair{
+			Key:   key,
+			Value: value,
 		},
-		Base: util.NewBaseReq(),
 	})
-	return err
-}
-
-func (g *GrpcTransport) SetSuccessor(node *dto.Node, successor *dto.Node) error {
-	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	_, err = client.SetSuccessor(ctx, &proto.NodeReq{
-		Node: &proto.Node{
-			Id:   successor.ID,
-			Addr: successor.Addr,
+	return &dto.StoreKeyResp{
+		Located: resp.GetLocated(),
+		NextNode: &dto.Node{
+			ID:   resp.GetNextNode().GetId(),
+			Addr: resp.GetNextNode().GetAddr(),
 		},
-		Base: util.NewBaseReq(),
-	})
-	return err
+	}, nil
 }
 
-func (g *GrpcTransport) GetVal(node *dto.Node, key string) ([]byte, error) {
+func (g *GrpcTransport) FindKey(node *dto.Node, keyID []byte) (*dto.FindKeyResp, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	resp, err := client.GetVal(ctx, &proto.GetValReq{
-		Key:  key,
-		Base: util.NewBaseReq(),
+	resp, err := client.FindKey(ctx, &proto.FindKeyReq{
+		KeyId: keyID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return resp.GetValue(), nil
+	return &dto.FindKeyResp{
+		Located: resp.GetLocated(),
+		KeyID:   resp.GetKeyId(),
+		Entry: &dto.Pair{
+			Key:   resp.GetEntry().GetKey(),
+			Value: resp.GetEntry().GetValue(),
+		},
+		NextNode: &dto.Node{
+			ID:   resp.GetNextNode().GetId(),
+			Addr: resp.GetNextNode().GetAddr(),
+		},
+	}, nil
 }
 
-func (g *GrpcTransport) SetKey(node *dto.Node, pair *dto.Pair) ([]byte, error) {
+func (g *GrpcTransport) DeleteKey(node *dto.Node, keyID []byte) (*dto.DeleteKeyResp, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	var protoPair proto.Pair
-	_ = mapstructure.Decode(pair, &protoPair)
-	resp, err := client.SetKey(ctx, &proto.SetKeyReq{
-		Pair: &protoPair,
-		Base: util.NewBaseReq(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp.GetId(), nil
-}
-
-func (g *GrpcTransport) DeleteKey(node *dto.Node, key string) (string, []byte, error) {
-	client, err := g.getConnection(node.Addr)
-	if err != nil {
-		return "", nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
 	resp, err := client.DeleteKey(ctx, &proto.DeleteKeyReq{
-		Key:  key,
-		Base: util.NewBaseReq(),
-	})
-	if err != nil {
-		return "", nil, err
-	}
-	return key, resp.GetId(), nil
-}
-
-func (g *GrpcTransport) MultiDelete(node *dto.Node, keys []string) ([]string, error) {
-	client, err := g.getConnection(node.Addr)
-	if err != nil {
-		return nil, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	resp, err := client.MultiDelete(ctx, &proto.MultiDeleteReq{
-		Keys: keys,
-		Base: util.NewBaseReq(),
+		KeyId: keyID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return resp.GetKeys(), nil
+	return &dto.DeleteKeyResp{
+		Located:  resp.GetLocated(),
+		KeyExist: resp.GetKeyExist(),
+		KeyID:    resp.GetKeyId(),
+		NextNode: &dto.Node{
+			ID:   resp.GetNextNode().GetId(),
+			Addr: resp.GetNextNode().GetAddr(),
+		},
+	}, nil
 }
 
-func (g *GrpcTransport) GetKeys(node *dto.Node, from []byte, to []byte) ([]*dto.Pair, error) {
+func (g *GrpcTransport) TakeOverKeys(node *dto.Node, data []*dto.Data) error {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
-	resp, err := client.GetKeys(ctx, &proto.GetKeysReq{
-		From: from,
-		To:   to,
-		Base: util.NewBaseReq(),
+	reqData := make([]*proto.Data, 0)
+	for _, d := range data {
+		reqData = append(reqData, &proto.Data{
+			KeyId: d.KeyID,
+			Entry: &proto.Pair{
+				Key:   d.Key,
+				Value: d.Value,
+			},
+		})
+	}
+	_, err = client.TakeOverKeys(ctx, &proto.TakeOverKeysReq{
+		Data: reqData,
 	})
 	if err != nil {
-		return nil, err
-	}
-	pairs := resp.GetPairs()
-	dtoPairs := make([]*dto.Pair, 0)
-	for _, pair := range pairs {
-		var dtoPair dto.Pair
-		_ = mapstructure.Decode(pair, &dtoPair)
-		dtoPairs = append(dtoPairs, &dtoPair)
-	}
-	return dtoPairs, nil
-}
-
-func (g *GrpcTransport) CheckAlive(node *dto.Node) error {
-	client, err := g.getConnection(node.Addr)
-	if err != nil {
-		return chorderr.ErrPredecessorFailed
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	pong, err := client.CheckAlive(ctx, &proto.ER{})
-	if err != nil || pong == nil {
-		return chorderr.ErrPredecessorFailed
+		return err
 	}
 	return nil
 }

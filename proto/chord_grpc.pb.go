@@ -18,32 +18,16 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChordClient interface {
-	// GetPredecessor returns the node that is considered to be the current node's predecessor
-	GetPredecessor(ctx context.Context, in *BaseReq, opts ...grpc.CallOption) (*NodeResp, error)
-	// GetSuccessor returns the node that is considered to be the current node's successor
-	GetSuccessor(ctx context.Context, in *BaseReq, opts ...grpc.CallOption) (*NodeResp, error)
-	// Notify tell the Chord server that the Node think it is the predecessor, which
-	// has the potential to initiate the transferring of keys
-	Notify(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error)
-	// FindSuccessor finds the node's successor by ID
-	FindSuccessor(ctx context.Context, in *IDReq, opts ...grpc.CallOption) (*NodeResp, error)
-	// CheckPredecessor checks if the predecessor alive
-	ChekPredecessor(ctx context.Context, in *IDReq, opts ...grpc.CallOption) (*BaseResp, error)
-	// SetPredecessor sets the predecessor for a node
-	SetPredecessor(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error)
-	// SetSuccessor sets the successor for a node
-	SetSuccessor(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error)
-	// GetVal returns the value in the Chord ring for a given key
-	GetVal(ctx context.Context, in *GetValReq, opts ...grpc.CallOption) (*GetValResp, error)
-	// SetKey writes a k-v pair to the chord ring
-	SetKey(ctx context.Context, in *SetKeyReq, opts ...grpc.CallOption) (*SetKeyResp, error)
-	// DeleteKey delete the k-v pair of the chord ring
+	CheckAlive(ctx context.Context, in *CheckAliveReq, opts ...grpc.CallOption) (*CheckAliveResp, error)
+	FindSuccessor(ctx context.Context, in *FindSuccessorReq, opts ...grpc.CallOption) (*FindSuccessorResp, error)
+	GetPredecessor(ctx context.Context, in *GetPredecessorReq, opts ...grpc.CallOption) (*GetPredecessorResp, error)
+	Notify(ctx context.Context, in *NotifyReq, opts ...grpc.CallOption) (*NotifyResp, error)
+	FindSuccessorFinger(ctx context.Context, in *FindSuccessorFingerReq, opts ...grpc.CallOption) (*FindSuccessorFingerResp, error)
+	GetSuccessorList(ctx context.Context, in *GetSuccessorListReq, opts ...grpc.CallOption) (*GetSuccessorListResp, error)
+	StoreKey(ctx context.Context, in *StoreKeyReq, opts ...grpc.CallOption) (*StoreKeyResp, error)
+	FindKey(ctx context.Context, in *FindKeyReq, opts ...grpc.CallOption) (*FindKeyResp, error)
 	DeleteKey(ctx context.Context, in *DeleteKeyReq, opts ...grpc.CallOption) (*DeleteKeyResp, error)
-	// MultiDelete delete the k-v pairs of the chord ring;
-	MultiDelete(ctx context.Context, in *MultiDeleteReq, opts ...grpc.CallOption) (*MultiDeleteResp, error)
-	// GetKeys returns the k-v pairs between the given range of the Chord ring
-	GetKeys(ctx context.Context, in *GetKeysReq, opts ...grpc.CallOption) (*GetKeysResp, error)
-	CheckAlive(ctx context.Context, in *ER, opts ...grpc.CallOption) (*Pong, error)
+	TakeOverKeys(ctx context.Context, in *TakeOverKeysReq, opts ...grpc.CallOption) (*TakeOverKeysResp, error)
 }
 
 type chordClient struct {
@@ -54,35 +38,17 @@ func NewChordClient(cc grpc.ClientConnInterface) ChordClient {
 	return &chordClient{cc}
 }
 
-func (c *chordClient) GetPredecessor(ctx context.Context, in *BaseReq, opts ...grpc.CallOption) (*NodeResp, error) {
-	out := new(NodeResp)
-	err := c.cc.Invoke(ctx, "/Chord/GetPredecessor", in, out, opts...)
+func (c *chordClient) CheckAlive(ctx context.Context, in *CheckAliveReq, opts ...grpc.CallOption) (*CheckAliveResp, error) {
+	out := new(CheckAliveResp)
+	err := c.cc.Invoke(ctx, "/Chord/CheckAlive", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chordClient) GetSuccessor(ctx context.Context, in *BaseReq, opts ...grpc.CallOption) (*NodeResp, error) {
-	out := new(NodeResp)
-	err := c.cc.Invoke(ctx, "/Chord/GetSuccessor", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chordClient) Notify(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error) {
-	out := new(BaseResp)
-	err := c.cc.Invoke(ctx, "/Chord/Notify", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chordClient) FindSuccessor(ctx context.Context, in *IDReq, opts ...grpc.CallOption) (*NodeResp, error) {
-	out := new(NodeResp)
+func (c *chordClient) FindSuccessor(ctx context.Context, in *FindSuccessorReq, opts ...grpc.CallOption) (*FindSuccessorResp, error) {
+	out := new(FindSuccessorResp)
 	err := c.cc.Invoke(ctx, "/Chord/FindSuccessor", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -90,45 +56,54 @@ func (c *chordClient) FindSuccessor(ctx context.Context, in *IDReq, opts ...grpc
 	return out, nil
 }
 
-func (c *chordClient) ChekPredecessor(ctx context.Context, in *IDReq, opts ...grpc.CallOption) (*BaseResp, error) {
-	out := new(BaseResp)
-	err := c.cc.Invoke(ctx, "/Chord/ChekPredecessor", in, out, opts...)
+func (c *chordClient) GetPredecessor(ctx context.Context, in *GetPredecessorReq, opts ...grpc.CallOption) (*GetPredecessorResp, error) {
+	out := new(GetPredecessorResp)
+	err := c.cc.Invoke(ctx, "/Chord/GetPredecessor", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chordClient) SetPredecessor(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error) {
-	out := new(BaseResp)
-	err := c.cc.Invoke(ctx, "/Chord/SetPredecessor", in, out, opts...)
+func (c *chordClient) Notify(ctx context.Context, in *NotifyReq, opts ...grpc.CallOption) (*NotifyResp, error) {
+	out := new(NotifyResp)
+	err := c.cc.Invoke(ctx, "/Chord/Notify", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chordClient) SetSuccessor(ctx context.Context, in *NodeReq, opts ...grpc.CallOption) (*BaseResp, error) {
-	out := new(BaseResp)
-	err := c.cc.Invoke(ctx, "/Chord/SetSuccessor", in, out, opts...)
+func (c *chordClient) FindSuccessorFinger(ctx context.Context, in *FindSuccessorFingerReq, opts ...grpc.CallOption) (*FindSuccessorFingerResp, error) {
+	out := new(FindSuccessorFingerResp)
+	err := c.cc.Invoke(ctx, "/Chord/FindSuccessorFinger", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chordClient) GetVal(ctx context.Context, in *GetValReq, opts ...grpc.CallOption) (*GetValResp, error) {
-	out := new(GetValResp)
-	err := c.cc.Invoke(ctx, "/Chord/GetVal", in, out, opts...)
+func (c *chordClient) GetSuccessorList(ctx context.Context, in *GetSuccessorListReq, opts ...grpc.CallOption) (*GetSuccessorListResp, error) {
+	out := new(GetSuccessorListResp)
+	err := c.cc.Invoke(ctx, "/Chord/GetSuccessorList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chordClient) SetKey(ctx context.Context, in *SetKeyReq, opts ...grpc.CallOption) (*SetKeyResp, error) {
-	out := new(SetKeyResp)
-	err := c.cc.Invoke(ctx, "/Chord/SetKey", in, out, opts...)
+func (c *chordClient) StoreKey(ctx context.Context, in *StoreKeyReq, opts ...grpc.CallOption) (*StoreKeyResp, error) {
+	out := new(StoreKeyResp)
+	err := c.cc.Invoke(ctx, "/Chord/StoreKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) FindKey(ctx context.Context, in *FindKeyReq, opts ...grpc.CallOption) (*FindKeyResp, error) {
+	out := new(FindKeyResp)
+	err := c.cc.Invoke(ctx, "/Chord/FindKey", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -144,27 +119,9 @@ func (c *chordClient) DeleteKey(ctx context.Context, in *DeleteKeyReq, opts ...g
 	return out, nil
 }
 
-func (c *chordClient) MultiDelete(ctx context.Context, in *MultiDeleteReq, opts ...grpc.CallOption) (*MultiDeleteResp, error) {
-	out := new(MultiDeleteResp)
-	err := c.cc.Invoke(ctx, "/Chord/MultiDelete", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chordClient) GetKeys(ctx context.Context, in *GetKeysReq, opts ...grpc.CallOption) (*GetKeysResp, error) {
-	out := new(GetKeysResp)
-	err := c.cc.Invoke(ctx, "/Chord/GetKeys", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *chordClient) CheckAlive(ctx context.Context, in *ER, opts ...grpc.CallOption) (*Pong, error) {
-	out := new(Pong)
-	err := c.cc.Invoke(ctx, "/Chord/CheckAlive", in, out, opts...)
+func (c *chordClient) TakeOverKeys(ctx context.Context, in *TakeOverKeysReq, opts ...grpc.CallOption) (*TakeOverKeysResp, error) {
+	out := new(TakeOverKeysResp)
+	err := c.cc.Invoke(ctx, "/Chord/TakeOverKeys", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -175,76 +132,51 @@ func (c *chordClient) CheckAlive(ctx context.Context, in *ER, opts ...grpc.CallO
 // All implementations should embed UnimplementedChordServer
 // for forward compatibility
 type ChordServer interface {
-	// GetPredecessor returns the node that is considered to be the current node's predecessor
-	GetPredecessor(context.Context, *BaseReq) (*NodeResp, error)
-	// GetSuccessor returns the node that is considered to be the current node's successor
-	GetSuccessor(context.Context, *BaseReq) (*NodeResp, error)
-	// Notify tell the Chord server that the Node think it is the predecessor, which
-	// has the potential to initiate the transferring of keys
-	Notify(context.Context, *NodeReq) (*BaseResp, error)
-	// FindSuccessor finds the node's successor by ID
-	FindSuccessor(context.Context, *IDReq) (*NodeResp, error)
-	// CheckPredecessor checks if the predecessor alive
-	ChekPredecessor(context.Context, *IDReq) (*BaseResp, error)
-	// SetPredecessor sets the predecessor for a node
-	SetPredecessor(context.Context, *NodeReq) (*BaseResp, error)
-	// SetSuccessor sets the successor for a node
-	SetSuccessor(context.Context, *NodeReq) (*BaseResp, error)
-	// GetVal returns the value in the Chord ring for a given key
-	GetVal(context.Context, *GetValReq) (*GetValResp, error)
-	// SetKey writes a k-v pair to the chord ring
-	SetKey(context.Context, *SetKeyReq) (*SetKeyResp, error)
-	// DeleteKey delete the k-v pair of the chord ring
+	CheckAlive(context.Context, *CheckAliveReq) (*CheckAliveResp, error)
+	FindSuccessor(context.Context, *FindSuccessorReq) (*FindSuccessorResp, error)
+	GetPredecessor(context.Context, *GetPredecessorReq) (*GetPredecessorResp, error)
+	Notify(context.Context, *NotifyReq) (*NotifyResp, error)
+	FindSuccessorFinger(context.Context, *FindSuccessorFingerReq) (*FindSuccessorFingerResp, error)
+	GetSuccessorList(context.Context, *GetSuccessorListReq) (*GetSuccessorListResp, error)
+	StoreKey(context.Context, *StoreKeyReq) (*StoreKeyResp, error)
+	FindKey(context.Context, *FindKeyReq) (*FindKeyResp, error)
 	DeleteKey(context.Context, *DeleteKeyReq) (*DeleteKeyResp, error)
-	// MultiDelete delete the k-v pairs of the chord ring;
-	MultiDelete(context.Context, *MultiDeleteReq) (*MultiDeleteResp, error)
-	// GetKeys returns the k-v pairs between the given range of the Chord ring
-	GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error)
-	CheckAlive(context.Context, *ER) (*Pong, error)
+	TakeOverKeys(context.Context, *TakeOverKeysReq) (*TakeOverKeysResp, error)
 }
 
 // UnimplementedChordServer should be embedded to have forward compatible implementations.
 type UnimplementedChordServer struct {
 }
 
-func (UnimplementedChordServer) GetPredecessor(context.Context, *BaseReq) (*NodeResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPredecessor not implemented")
+func (UnimplementedChordServer) CheckAlive(context.Context, *CheckAliveReq) (*CheckAliveResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckAlive not implemented")
 }
-func (UnimplementedChordServer) GetSuccessor(context.Context, *BaseReq) (*NodeResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSuccessor not implemented")
-}
-func (UnimplementedChordServer) Notify(context.Context, *NodeReq) (*BaseResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
-}
-func (UnimplementedChordServer) FindSuccessor(context.Context, *IDReq) (*NodeResp, error) {
+func (UnimplementedChordServer) FindSuccessor(context.Context, *FindSuccessorReq) (*FindSuccessorResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FindSuccessor not implemented")
 }
-func (UnimplementedChordServer) ChekPredecessor(context.Context, *IDReq) (*BaseResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ChekPredecessor not implemented")
+func (UnimplementedChordServer) GetPredecessor(context.Context, *GetPredecessorReq) (*GetPredecessorResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPredecessor not implemented")
 }
-func (UnimplementedChordServer) SetPredecessor(context.Context, *NodeReq) (*BaseResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetPredecessor not implemented")
+func (UnimplementedChordServer) Notify(context.Context, *NotifyReq) (*NotifyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Notify not implemented")
 }
-func (UnimplementedChordServer) SetSuccessor(context.Context, *NodeReq) (*BaseResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetSuccessor not implemented")
+func (UnimplementedChordServer) FindSuccessorFinger(context.Context, *FindSuccessorFingerReq) (*FindSuccessorFingerResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindSuccessorFinger not implemented")
 }
-func (UnimplementedChordServer) GetVal(context.Context, *GetValReq) (*GetValResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetVal not implemented")
+func (UnimplementedChordServer) GetSuccessorList(context.Context, *GetSuccessorListReq) (*GetSuccessorListResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSuccessorList not implemented")
 }
-func (UnimplementedChordServer) SetKey(context.Context, *SetKeyReq) (*SetKeyResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetKey not implemented")
+func (UnimplementedChordServer) StoreKey(context.Context, *StoreKeyReq) (*StoreKeyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StoreKey not implemented")
+}
+func (UnimplementedChordServer) FindKey(context.Context, *FindKeyReq) (*FindKeyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FindKey not implemented")
 }
 func (UnimplementedChordServer) DeleteKey(context.Context, *DeleteKeyReq) (*DeleteKeyResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteKey not implemented")
 }
-func (UnimplementedChordServer) MultiDelete(context.Context, *MultiDeleteReq) (*MultiDeleteResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MultiDelete not implemented")
-}
-func (UnimplementedChordServer) GetKeys(context.Context, *GetKeysReq) (*GetKeysResp, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetKeys not implemented")
-}
-func (UnimplementedChordServer) CheckAlive(context.Context, *ER) (*Pong, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckAlive not implemented")
+func (UnimplementedChordServer) TakeOverKeys(context.Context, *TakeOverKeysReq) (*TakeOverKeysResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TakeOverKeys not implemented")
 }
 
 // UnsafeChordServer may be embedded to opt out of forward compatibility for this service.
@@ -258,62 +190,26 @@ func RegisterChordServer(s grpc.ServiceRegistrar, srv ChordServer) {
 	s.RegisterService(&Chord_ServiceDesc, srv)
 }
 
-func _Chord_GetPredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BaseReq)
+func _Chord_CheckAlive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckAliveReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).GetPredecessor(ctx, in)
+		return srv.(ChordServer).CheckAlive(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/GetPredecessor",
+		FullMethod: "/Chord/CheckAlive",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).GetPredecessor(ctx, req.(*BaseReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Chord_GetSuccessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BaseReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChordServer).GetSuccessor(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Chord/GetSuccessor",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).GetSuccessor(ctx, req.(*BaseReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Chord_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NodeReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChordServer).Notify(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Chord/Notify",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).Notify(ctx, req.(*NodeReq))
+		return srv.(ChordServer).CheckAlive(ctx, req.(*CheckAliveReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Chord_FindSuccessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IDReq)
+	in := new(FindSuccessorReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -325,97 +221,115 @@ func _Chord_FindSuccessor_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/Chord/FindSuccessor",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).FindSuccessor(ctx, req.(*IDReq))
+		return srv.(ChordServer).FindSuccessor(ctx, req.(*FindSuccessorReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_ChekPredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IDReq)
+func _Chord_GetPredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPredecessorReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).ChekPredecessor(ctx, in)
+		return srv.(ChordServer).GetPredecessor(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/ChekPredecessor",
+		FullMethod: "/Chord/GetPredecessor",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).ChekPredecessor(ctx, req.(*IDReq))
+		return srv.(ChordServer).GetPredecessor(ctx, req.(*GetPredecessorReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_SetPredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NodeReq)
+func _Chord_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).SetPredecessor(ctx, in)
+		return srv.(ChordServer).Notify(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/SetPredecessor",
+		FullMethod: "/Chord/Notify",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).SetPredecessor(ctx, req.(*NodeReq))
+		return srv.(ChordServer).Notify(ctx, req.(*NotifyReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_SetSuccessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NodeReq)
+func _Chord_FindSuccessorFinger_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindSuccessorFingerReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).SetSuccessor(ctx, in)
+		return srv.(ChordServer).FindSuccessorFinger(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/SetSuccessor",
+		FullMethod: "/Chord/FindSuccessorFinger",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).SetSuccessor(ctx, req.(*NodeReq))
+		return srv.(ChordServer).FindSuccessorFinger(ctx, req.(*FindSuccessorFingerReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_GetVal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetValReq)
+func _Chord_GetSuccessorList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSuccessorListReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).GetVal(ctx, in)
+		return srv.(ChordServer).GetSuccessorList(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/GetVal",
+		FullMethod: "/Chord/GetSuccessorList",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).GetVal(ctx, req.(*GetValReq))
+		return srv.(ChordServer).GetSuccessorList(ctx, req.(*GetSuccessorListReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_SetKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetKeyReq)
+func _Chord_StoreKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StoreKeyReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).SetKey(ctx, in)
+		return srv.(ChordServer).StoreKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/SetKey",
+		FullMethod: "/Chord/StoreKey",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).SetKey(ctx, req.(*SetKeyReq))
+		return srv.(ChordServer).StoreKey(ctx, req.(*StoreKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Chord_FindKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FindKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).FindKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/FindKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).FindKey(ctx, req.(*FindKeyReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -438,56 +352,20 @@ func _Chord_DeleteKey_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chord_MultiDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MultiDeleteReq)
+func _Chord_TakeOverKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TakeOverKeysReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ChordServer).MultiDelete(ctx, in)
+		return srv.(ChordServer).TakeOverKeys(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Chord/MultiDelete",
+		FullMethod: "/Chord/TakeOverKeys",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).MultiDelete(ctx, req.(*MultiDeleteReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Chord_GetKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetKeysReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChordServer).GetKeys(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Chord/GetKeys",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).GetKeys(ctx, req.(*GetKeysReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Chord_CheckAlive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ER)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChordServer).CheckAlive(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Chord/CheckAlive",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordServer).CheckAlive(ctx, req.(*ER))
+		return srv.(ChordServer).TakeOverKeys(ctx, req.(*TakeOverKeysReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -500,56 +378,44 @@ var Chord_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ChordServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetPredecessor",
-			Handler:    _Chord_GetPredecessor_Handler,
-		},
-		{
-			MethodName: "GetSuccessor",
-			Handler:    _Chord_GetSuccessor_Handler,
-		},
-		{
-			MethodName: "Notify",
-			Handler:    _Chord_Notify_Handler,
+			MethodName: "CheckAlive",
+			Handler:    _Chord_CheckAlive_Handler,
 		},
 		{
 			MethodName: "FindSuccessor",
 			Handler:    _Chord_FindSuccessor_Handler,
 		},
 		{
-			MethodName: "ChekPredecessor",
-			Handler:    _Chord_ChekPredecessor_Handler,
+			MethodName: "GetPredecessor",
+			Handler:    _Chord_GetPredecessor_Handler,
 		},
 		{
-			MethodName: "SetPredecessor",
-			Handler:    _Chord_SetPredecessor_Handler,
+			MethodName: "Notify",
+			Handler:    _Chord_Notify_Handler,
 		},
 		{
-			MethodName: "SetSuccessor",
-			Handler:    _Chord_SetSuccessor_Handler,
+			MethodName: "FindSuccessorFinger",
+			Handler:    _Chord_FindSuccessorFinger_Handler,
 		},
 		{
-			MethodName: "GetVal",
-			Handler:    _Chord_GetVal_Handler,
+			MethodName: "GetSuccessorList",
+			Handler:    _Chord_GetSuccessorList_Handler,
 		},
 		{
-			MethodName: "SetKey",
-			Handler:    _Chord_SetKey_Handler,
+			MethodName: "StoreKey",
+			Handler:    _Chord_StoreKey_Handler,
+		},
+		{
+			MethodName: "FindKey",
+			Handler:    _Chord_FindKey_Handler,
 		},
 		{
 			MethodName: "DeleteKey",
 			Handler:    _Chord_DeleteKey_Handler,
 		},
 		{
-			MethodName: "MultiDelete",
-			Handler:    _Chord_MultiDelete_Handler,
-		},
-		{
-			MethodName: "GetKeys",
-			Handler:    _Chord_GetKeys_Handler,
-		},
-		{
-			MethodName: "CheckAlive",
-			Handler:    _Chord_CheckAlive_Handler,
+			MethodName: "TakeOverKeys",
+			Handler:    _Chord_TakeOverKeys_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

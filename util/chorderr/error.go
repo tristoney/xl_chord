@@ -12,8 +12,9 @@ var (
 	ErrNilPool           = BaseError{-4, "pool is empty"}
 	ErrNodeExist         = BaseError{-5, "node already exists"}
 	ErrSuccessorNotExist = BaseError{-6, "successor not exists"}
-	ErrPredecessorFailed = BaseError{-7, "predecessor has failed"}
+	ErrNodeFailed        = BaseError{-7, "node has failed"}
 	ErrParamError        = BaseError{-20, "param error"}
+	ErrNoValidResp       = BaseError{-21, "resp is empty"}
 )
 
 type BaseError struct {

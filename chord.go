@@ -322,7 +322,7 @@ func (n *Node) checkRedistributeKeys(pred *dto.Node) {
 				return
 			}
 			n.StorageMtx.Lock()
-			deleteKey, _ := n.Storage.DeleteKey(keyID)
+			deleteKey, _, _ := n.Storage.DeleteKey(keyID)
 			n.StorageMtx.Unlock()
 			log.Logf(log.INFO, "Transferring key %s, value: %s", key, deleteKey)
 		}
@@ -580,11 +580,67 @@ func (n *Node) StoreKey(ctx context.Context, req *proto.StoreKeyReq) (*proto.Sto
 }
 
 func (n *Node) FindKey(ctx context.Context, req *proto.FindKeyReq) (*proto.FindKeyResp, error) {
-	panic("implement me")
+	keyID := req.GetKeyId()
+	pred := n.getPredecessor()
+	if pred != nil {
+		if math.IsMyKey(n.ID, pred.ID, keyID) {
+			// I'm responsible for the key
+			pair, err := n.Storage.GetKey(keyID)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.FindKeyResp{
+				Located: true,
+				KeyId:   keyID,
+				Entry: &proto.Pair{
+					Key:   pair.Key,
+					Value: pair.Value,
+				},
+			}, nil
+		} else {
+			nextNode := n.closestPrecedingNode(keyID)
+			return &proto.FindKeyResp{
+				Located:  false,
+				NextNode: nextNode.ToProtoNode(),
+			}, nil
+		}
+	} else {
+		nextNode := n.closestPrecedingNode(keyID)
+		return &proto.FindKeyResp{
+			Located:  false,
+			NextNode: nextNode.ToProtoNode(),
+		}, nil
+	}
 }
 
 func (n *Node) DeleteKey(ctx context.Context, req *proto.DeleteKeyReq) (*proto.DeleteKeyResp, error) {
-	panic("implement me")
+	keyID := req.GetKeyId()
+	pred := n.getPredecessor()
+	if pred != nil {
+		if math.IsMyKey(n.ID, pred.ID, keyID) {
+			// I'm responsible for the key
+			val, keyExist, _ := n.Storage.DeleteKey(keyID)
+
+			return &proto.DeleteKeyResp{
+				Located:  true,
+				KeyId:    keyID,
+				KeyExist: keyExist,
+				Value: val,
+			}, nil
+		} else {
+			nextNode := n.closestPrecedingNode(keyID)
+			return &proto.DeleteKeyResp{
+				Located:  false,
+				NextNode: nextNode.ToProtoNode(),
+			}, nil
+		}
+	} else {
+		nextNode := n.closestPrecedingNode(keyID)
+		return &proto.DeleteKeyResp{
+			Located:  false,
+			NextNode: nextNode.ToProtoNode(),
+		}, nil
+	}
 }
 
 func (n *Node) TakeOverKeys(ctx context.Context, req *proto.TakeOverKeysReq) (*proto.TakeOverKeysResp, error) {

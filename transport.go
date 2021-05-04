@@ -34,8 +34,8 @@ type Transport interface {
 
 	// storage access
 	StoreKey(node *dto.Node, keyID []byte, key, value string) (string, error)
-	FindKey(node *dto.Node, keyID []byte) (*dto.FindKeyResp, error)
-	DeleteKey(node *dto.Node, keyID []byte) (*dto.DeleteKeyResp, error)
+	FindKey(node *dto.Node, keyID []byte, key string) (string, error)
+	DeleteKey(node *dto.Node, keyID []byte, key string) (string, bool, error)
 	TakeOverKeys(node *dto.Node, data []*dto.Data) error
 }
 
@@ -385,10 +385,10 @@ func (g *GrpcTransport) StoreKey(node *dto.Node, keyID []byte, key, value string
 	}
 }
 
-func (g *GrpcTransport) FindKey(node *dto.Node, keyID []byte) (*dto.FindKeyResp, error) {
+func (g *GrpcTransport) FindKey(node *dto.Node, keyID []byte, key string) (string, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
@@ -396,26 +396,32 @@ func (g *GrpcTransport) FindKey(node *dto.Node, keyID []byte) (*dto.FindKeyResp,
 		KeyId: keyID,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return &dto.FindKeyResp{
-		Located: resp.GetLocated(),
-		KeyID:   resp.GetKeyId(),
-		Entry: &dto.Pair{
-			Key:   resp.GetEntry().GetKey(),
-			Value: resp.GetEntry().GetValue(),
-		},
-		NextNode: &dto.Node{
-			ID:   resp.GetNextNode().GetId(),
-			Addr: resp.GetNextNode().GetAddr(),
-		},
-	}, nil
+	if resp.Located {
+		entry := resp.GetEntry()
+		val := entry.GetValue()
+		log.Logf(log.DEBUG, "Value for key{%s} ID{%d} has founded: %s", key, math.ToBig(keyID), val)
+		return val, nil
+	} else {
+		nextNode := resp.GetNextNode()
+		n := &dto.Node{
+			ID:   nextNode.Id,
+			Addr: nextNode.Addr,
+		}
+		log.Logf(log.DEBUG, "Did not find key{%s} ID{%d} yet, asking Node %s now...", key, math.ToBig(keyID), n)
+		v, err := g.FindKey(n, keyID, key)
+		if err != nil {
+			return "", err
+		}
+		return v, nil
+	}
 }
 
-func (g *GrpcTransport) DeleteKey(node *dto.Node, keyID []byte) (*dto.DeleteKeyResp, error) {
+func (g *GrpcTransport) DeleteKey(node *dto.Node, keyID []byte, key string) (string, bool, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		return nil, err
+		return "", false, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
@@ -423,17 +429,29 @@ func (g *GrpcTransport) DeleteKey(node *dto.Node, keyID []byte) (*dto.DeleteKeyR
 		KeyId: keyID,
 	})
 	if err != nil {
-		return nil, err
+		return "", false, err
 	}
-	return &dto.DeleteKeyResp{
-		Located:  resp.GetLocated(),
-		KeyExist: resp.GetKeyExist(),
-		KeyID:    resp.GetKeyId(),
-		NextNode: &dto.Node{
-			ID:   resp.GetNextNode().GetId(),
-			Addr: resp.GetNextNode().GetAddr(),
-		},
-	}, nil
+	if resp.Located {
+		val := resp.GetValue()
+		exist := resp.GetKeyExist()
+		if !exist {
+			log.Logf(log.DEBUG, "Key{%s} ID{%d} is not stored", key, math.ToBig(keyID))
+		}
+		log.Logf(log.DEBUG, "Key{%s} ID{%d} has deleted: %s", key, math.ToBig(keyID), val)
+		return val, exist, nil
+	} else {
+		nextNode := resp.GetNextNode()
+		n := &dto.Node{
+			ID:   nextNode.Id,
+			Addr: nextNode.Addr,
+		}
+		log.Logf(log.DEBUG, "Did not find key{%s} ID{%d} yet, asking Node %s now...", key, math.ToBig(keyID), n)
+		v, exist, err := g.DeleteKey(n, keyID, key)
+		if err != nil {
+			return "", false, err
+		}
+		return v, exist, nil
+	}
 }
 
 func (g *GrpcTransport) TakeOverKeys(node *dto.Node, data []*dto.Data) error {

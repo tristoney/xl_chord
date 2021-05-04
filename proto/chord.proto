@@ -111,7 +111,8 @@ message DeleteKeyResp {
   bool located = 1;
   bool key_exist = 2;
   bytes key_id = 3;
-  Node next_node = 4;
+  string value = 4;
+  Node next_node = 5;
 }
 
 message TakeOverKeysReq {

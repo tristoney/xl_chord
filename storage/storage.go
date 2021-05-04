@@ -9,7 +9,7 @@ import (
 type Storage interface {
 	GetKey([]byte) (*dto.Pair, error)               // Get the base-64 encoded value of key
 	StoreKey([]byte, dto.Pair) error                  // Set the base-64 encoded value to the key
-	DeleteKey([]byte) (string, error)               // Delete the k-v pair
+	DeleteKey([]byte) (string, bool, error)               // Delete the k-v pair
 	GetDataAsList() ([]*dto.Data, error)		// Get All Data as a slice
 	IsEmpty() bool
 }
@@ -39,10 +39,13 @@ func (m *MappedData) StoreKey(keyID []byte, pair dto.Pair) error {
 	return nil
 }
 
-func (m *MappedData) DeleteKey(keyID []byte) (string, error) {
-	val := m.data[string(keyID)]
+func (m *MappedData) DeleteKey(keyID []byte) (string, bool, error) {
+	val, ok := m.data[string(keyID)]
+	if !ok {
+		return "", false, chorderr.ErrDataNotExist
+	}
 	delete(m.data, string(keyID))
-	return val.Value, nil
+	return val.Value, true, nil
 }
 
 func (m *MappedData) GetDataAsList() ([]*dto.Data, error) {

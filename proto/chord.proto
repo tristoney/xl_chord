@@ -17,6 +17,8 @@ service Chord {
   rpc FindKey(FindKeyReq) returns(FindKeyResp);
   rpc DeleteKey(DeleteKeyReq) returns(DeleteKeyResp);
   rpc TakeOverKeys(TakeOverKeysReq) returns(TakeOverKeysResp);
+  rpc BackUpFromPredecessor(BackUpFromPredecessorReq) returns(BackUpFromPredecessorResp);
+  rpc BackUpFromSuccessor(BackUpFromSuccessorReq) returns(BackUpFromSuccessorResp);
 }
 
 message Node {
@@ -121,3 +123,14 @@ message TakeOverKeysReq {
 
 message TakeOverKeysResp {}
 
+message BackUpFromPredecessorReq {
+  repeated Data data = 1;
+}
+
+message BackUpFromPredecessorResp {}
+
+message BackUpFromSuccessorReq {
+  repeated Data data = 1;
+}
+
+message BackUpFromSuccessorResp {}

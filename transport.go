@@ -37,6 +37,8 @@ type Transport interface {
 	FindKey(node *dto.Node, keyID []byte, key string) (string, error)
 	DeleteKey(node *dto.Node, keyID []byte, key string) (string, bool, error)
 	TakeOverKeys(node *dto.Node, data []*dto.Data) error
+	BackUpFromPredecessor(node *dto.Node, data []*dto.Data) error
+	BackUpFromSuccessor(node *dto.Node, data []*dto.Data) error
 }
 
 type GrpcConn struct {
@@ -479,6 +481,60 @@ func (g *GrpcTransport) TakeOverKeys(node *dto.Node, data []*dto.Data) error {
 	}
 	return nil
 }
+
+func (g *GrpcTransport) BackUpFromPredecessor(node *dto.Node, data []*dto.Data) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	reqData := make([]*proto.Data, 0)
+	for _, d := range data {
+		reqData = append(reqData, &proto.Data{
+			KeyId: d.KeyID,
+			Entry: &proto.Pair{
+				Key:   d.Key,
+				Value: d.Value,
+			},
+		})
+	}
+	_, err = client.TakeOverKeys(ctx, &proto.TakeOverKeysReq{
+		Data: reqData,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *GrpcTransport) BackUpFromSuccessor(node *dto.Node, data []*dto.Data) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	reqData := make([]*proto.Data, 0)
+	for _, d := range data {
+		reqData = append(reqData, &proto.Data{
+			KeyId: d.KeyID,
+			Entry: &proto.Pair{
+				Key:   d.Key,
+				Value: d.Value,
+			},
+		})
+	}
+	_, err = client.TakeOverKeys(ctx, &proto.TakeOverKeysReq{
+		Data: reqData,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
 
 func (g *GrpcTransport) Init(config *config.Config, server interface{}) error {
 	if config == nil {

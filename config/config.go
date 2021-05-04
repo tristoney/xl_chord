@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/sha1"
 	"google.golang.org/grpc"
 	"hash"
 	"time"
@@ -18,6 +19,7 @@ type Config struct {
 	DialOptions   []grpc.DialOption
 
 	Timeout time.Duration // timeout duration of network
+	MaxIdle time.Duration
 }
 
 func (c *Config) Validate() error {
@@ -25,3 +27,14 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func DefaultConfig() *Config {
+	return &Config{
+		ID:            "",
+		Addr:          "",
+		HashFunc:      sha1.New,
+		HashSize:      sha1.Size * 8, // hash.Hash.Size() returns the the number of bytes
+		ServerOptions: nil,
+		DialOptions:   []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure(), grpc.FailOnNonTempDialError(true)},
+		Timeout:       5 * time.Second,
+	}
+}

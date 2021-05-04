@@ -7,10 +7,11 @@ import (
 )
 
 type Storage interface {
-	GetKey([]byte) (dto.Pair, error)               // Get the base-64 encoded value of key
+	GetKey([]byte) (*dto.Pair, error)               // Get the base-64 encoded value of key
 	StoreKey([]byte, dto.Pair) error                  // Set the base-64 encoded value to the key
 	DeleteKey([]byte) (string, error)               // Delete the k-v pair
 	GetDataAsList() ([]*dto.Data, error)		// Get All Data as a slice
+	IsEmpty() bool
 }
 
 type MappedData struct {

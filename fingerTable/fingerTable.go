@@ -3,7 +3,7 @@ package fingerTable
 import (
 	"fmt"
 	"github.com/tristoney/xl_chord/dto"
-	"github.com/tristoney/xl_chord/util"
+	"github.com/tristoney/xl_chord/util/math"
 	"math/big"
 )
 
@@ -22,20 +22,20 @@ type FingerTable struct {
 }
 
 func (f Finger) String() string {
-	return fmt.Sprintf("%s->%s", util.ToBig(f.ID), f.Successor)
+	return fmt.Sprintf("%s->%s", math.ToBig(f.ID), f.Successor)
 }
 
 func (f FingerTable) String() string {
 	entries := "["
 	for i, finger := range f.Entries {
-		entries += fmt.Sprintf("%d: %s->%s", i, util.ToBig(finger.ID), finger.Successor)
+		entries += fmt.Sprintf("%d: %s->%s", i, math.ToBig(finger.ID), finger.Successor)
 		if i != len(f.Entries) - 1{
 			entries += "\n"
 		}
 	}
 	entries += "]"
 
-	return fmt.Sprintf("Node{%s}'s FingerTable\n",util.ToBig(f.NodeID))+ entries
+	return fmt.Sprintf("Node{%s}'s FingerTable\n", math.ToBig(f.NodeID))+ entries
 }
 
 // GetID computes the hashed identifier of id(n + 2^i) mod 2^m with

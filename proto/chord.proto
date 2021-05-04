@@ -36,6 +36,8 @@ message FindSuccessorReq {
 
 message FindSuccessorResp {
   Node successor = 1;
+  bool found = 2;
+  Node next_node = 3;
 }
 
 message GetPredecessorReq {

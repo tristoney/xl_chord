@@ -4,7 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"github.com/tristoney/xl_chord/dto"
-	"github.com/tristoney/xl_chord/util"
+	"github.com/tristoney/xl_chord/util/math"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ func tempNode(addr string) dto.Node {
 		ID:   nil,
 		Addr: addr,
 	}
-	nodeID := util.GetHashKey(node.Addr, sha1.New)
+	nodeID := math.GetHashKey(node.Addr, sha1.New)
 	node.ID = nodeID
 	return node
 }

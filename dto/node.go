@@ -3,7 +3,8 @@ package dto
 import (
 	"crypto/sha1"
 	"fmt"
-	"github.com/tristoney/xl_chord/util"
+	"github.com/tristoney/xl_chord/proto"
+	"github.com/tristoney/xl_chord/util/math"
 )
 
 type Node struct {
@@ -34,7 +35,7 @@ type Data struct {
 }
 
 func (n Node) String() string {
-	return fmt.Sprintf("Node{%s}", n.Addr)
+	return fmt.Sprintf("{%s}", n.Addr)
 }
 
 func (p *Pair) String() string {
@@ -42,5 +43,12 @@ func (p *Pair) String() string {
 }
 
 func (d *Data) String() string {
-	return fmt.Sprintf("%s: [%s]", util.ToBig(d.KeyID), d.Pair)
+	return fmt.Sprintf("%s: [%s]", math.ToBig(d.KeyID), d.Pair)
+}
+
+func (n *Node) ToProtoNode() *proto.Node {
+	return &proto.Node{
+		Id:   n.ID,
+		Addr: n.Addr,
+	}
 }

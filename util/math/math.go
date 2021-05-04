@@ -1,4 +1,4 @@
-package util
+package math
 
 import (
 	"bytes"
@@ -20,9 +20,9 @@ func IsEqual(a, b []byte) bool {
 func Between(key, a, b []byte) bool {
 	switch bytes.Compare(a, b) {
 	case 1:
-		return bytes.Compare(a, key) == -1 || bytes.Compare(b, key) >= 0
+		return bytes.Compare(a, key) < 0 || bytes.Compare(b, key) > 0
 	case -1:
-		return bytes.Compare(a, key) == -1 && bytes.Compare(b, key) >= 0
+		return bytes.Compare(a, key) < 0 && bytes.Compare(b, key) > 0
 	case 0:
 		return bytes.Compare(a, key) != 0
 	}
@@ -46,5 +46,17 @@ func GetHashKey(key string, hashFunc func() hash.Hash) []byte {
 
 func ToBig(n []byte) *big.Int {
 	return bigInt.SetBytes(n)
+}
+
+func IsMyKey(nodeID, predID, keyID []byte) bool {
+	return bytes.Equal(nodeID, keyID) || (!bytes.Equal(keyID, predID) && Between(keyID, predID, nodeID))
+}
+
+func BigMax(byteNum int) *big.Int {
+	max := make([]byte, byteNum)
+	for i, _ := range max {
+		max[i] = 255
+	}
+	return (&big.Int{}).SetBytes(max)
 }
 

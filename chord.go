@@ -75,8 +75,10 @@ type Node struct {
 	Storage    storage.Storage
 	StorageMtx sync.RWMutex // read-write mutex, to avoid concurrently modify of node's Storage
 
-	PredecessorStorage storage.Storage
-	SuccessorStorage   storage.Storage
+	PredecessorStorage    storage.Storage
+	SuccessorStorage      storage.Storage
+	PredecessorStorageMtx sync.RWMutex
+	SuccessorStorageMtx   sync.RWMutex
 
 	Transport    Transport
 	TransportMtx sync.RWMutex // read-write mutex, to avoid concurrently modify of node's Transport
@@ -97,21 +99,23 @@ func NewNode(addr string, cnf *config.Config) (*Node, error) {
 			ID:   id,
 			Addr: addr,
 		},
-		Cnf:                cnf,
-		Predecessor:        nil,
-		PredecessorMtx:     sync.RWMutex{},
-		SuccessorList:      make([]*dto.Node, 0, SuccessorListSize),
-		SuccessorListMtx:   sync.RWMutex{},
-		FingerTable:        fingerTable.NewFingerTable(id, FingerTableSize),
-		FingerTableMtx:     sync.RWMutex{},
-		Storage:            storage.NewMappedData(cnf.HashFunc),
-		StorageMtx:         sync.RWMutex{},
-		PredecessorStorage: storage.NewMappedData(cnf.HashFunc),
-		SuccessorStorage:   storage.NewMappedData(cnf.HashFunc),
-		Transport:          grpcTransport,
-		TransportMtx:       sync.RWMutex{},
-		shutDownCh:         make(chan struct{}),
-		Joined:             false,
+		Cnf:                   cnf,
+		Predecessor:           nil,
+		PredecessorMtx:        sync.RWMutex{},
+		SuccessorList:         make([]*dto.Node, 0, SuccessorListSize),
+		SuccessorListMtx:      sync.RWMutex{},
+		FingerTable:           fingerTable.NewFingerTable(id, FingerTableSize),
+		FingerTableMtx:        sync.RWMutex{},
+		Storage:               storage.NewMappedData(cnf.HashFunc),
+		StorageMtx:            sync.RWMutex{},
+		PredecessorStorage:    storage.NewMappedData(cnf.HashFunc),
+		SuccessorStorage:      storage.NewMappedData(cnf.HashFunc),
+		PredecessorStorageMtx: sync.RWMutex{},
+		SuccessorStorageMtx:   sync.RWMutex{},
+		Transport:             grpcTransport,
+		TransportMtx:          sync.RWMutex{},
+		shutDownCh:            make(chan struct{}),
+		Joined:                false,
 	}
 	node.Transport.SetSender(node)
 	return node, nil
@@ -139,19 +143,21 @@ func NewFirst(addr string, cnf *config.Config) (*Node, error) {
 			ID:   id,
 			Addr: addr,
 		},
-		PredecessorMtx:     sync.RWMutex{},
-		SuccessorList:      successorList,
-		SuccessorListMtx:   sync.RWMutex{},
-		FingerTable:        fingerTable.NewFirst(id, successor, FingerTableSize),
-		FingerTableMtx:     sync.RWMutex{},
-		Storage:            storage.NewMappedData(cnf.HashFunc),
-		StorageMtx:         sync.RWMutex{},
-		PredecessorStorage: storage.NewMappedData(cnf.HashFunc),
-		SuccessorStorage:   storage.NewMappedData(cnf.HashFunc),
-		Transport:          grpcTransport,
-		TransportMtx:       sync.RWMutex{},
-		shutDownCh:         make(chan struct{}),
-		Joined:             true,
+		PredecessorMtx:        sync.RWMutex{},
+		SuccessorList:         successorList,
+		SuccessorListMtx:      sync.RWMutex{},
+		FingerTable:           fingerTable.NewFirst(id, successor, FingerTableSize),
+		FingerTableMtx:        sync.RWMutex{},
+		Storage:               storage.NewMappedData(cnf.HashFunc),
+		StorageMtx:            sync.RWMutex{},
+		PredecessorStorage:    storage.NewMappedData(cnf.HashFunc),
+		SuccessorStorage:      storage.NewMappedData(cnf.HashFunc),
+		PredecessorStorageMtx: sync.RWMutex{},
+		SuccessorStorageMtx:   sync.RWMutex{},
+		Transport:             grpcTransport,
+		TransportMtx:          sync.RWMutex{},
+		shutDownCh:            make(chan struct{}),
+		Joined:                true,
 	}
 	node.Transport.SetSender(node)
 	return node, nil
@@ -229,8 +235,8 @@ func (n *Node) Stop() {
 
 func (n *Node) updateSuccessorAndSuccessorList(successor *dto.Node) {
 	n.FingerTable.SetSuccessor(*successor)
-	dataList := n.getStorageKeys()
-	go n.replicaFromPredecessor(successor, dataList)
+	//dataList := n.getStorageKeys()
+	//go n.replicaFromPredecessor(successor, dataList)
 	list, err := n.Transport.GetSuccessorList(successor)
 	if err != nil {
 		return
@@ -308,10 +314,10 @@ func (n *Node) setPredecessor(pred *dto.Node) {
 	n.PredecessorMtx.Lock()
 	n.Predecessor = pred
 	n.PredecessorMtx.Unlock()
-	dataList := n.getStorageKeys()
 	if pred != nil {
 		n.checkRedistributeKeys(pred)
-		go n.replicaFromSuccessor(pred, dataList)
+		//dataList := n.getStorageKeys()
+		//go n.replicaFromSuccessor(pred, dataList)
 	}
 }
 
@@ -352,6 +358,22 @@ func (n *Node) replicaFromPredecessor(successor *dto.Node, dataList []*dto.Data)
 			}
 		}
 	}
+}
+
+func (n *Node) syncToPredecessorAppend(predecessor *dto.Node, keyID []byte, key, value string) {
+	_ = n.Transport.AppendSuccessorReplica(predecessor, keyID, key, value)
+}
+
+func (n *Node) syncToSuccessorAppend(successor *dto.Node, keyID []byte, key, value string) {
+	_ = n.Transport.AppendPredecessorReplica(successor, keyID, key, value)
+}
+
+func (n *Node) removeKeyOfSuccessor(predecessor *dto.Node, keyID []byte) {
+	_ = n.Transport.DeleteSuccessorReplicaKey(predecessor, keyID)
+}
+
+func (n *Node) removeKeyOfPredecessor(successor *dto.Node, keyID []byte) {
+	_ = n.Transport.DeletePredecessorReplicaKey(successor, keyID)
 }
 
 func (n *Node) checkRedistributeKeys(pred *dto.Node) {
@@ -433,7 +455,7 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 		return nil, err
 	}
 	nodeID := node.ID
-	log.Logf(log.INFO, "Node %s(ID: %d) server initiaed...", node.Node, math.ToBig(nodeID))
+	log.Logf(log.INFO, "Node %s(ID: %d) server initiated...", node.Node, math.ToBig(nodeID))
 	if peerAddr != "" {
 		time.Sleep(NodeInitSleepInterval)
 		for {
@@ -484,7 +506,6 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 			}
 		}
 	}()
-
 
 	go func() {
 		ticker := time.NewTicker(ReplicaBackUpInterval)
@@ -624,6 +645,12 @@ func (n *Node) StoreKey(ctx context.Context, req *proto.StoreKeyReq) (*proto.Sto
 				Key:   entry.GetKey(),
 				Value: entry.GetValue(),
 			})
+			go n.syncToPredecessorAppend(pred, keyID, entry.GetKey(), entry.GetValue())
+			go func() {
+				successor := n.getSuccessor()
+				n.syncToSuccessorAppend(successor, keyID, entry.GetKey(), entry.GetValue())
+			}()
+
 			return &proto.StoreKeyResp{
 				Located: true,
 			}, nil
@@ -684,6 +711,11 @@ func (n *Node) DeleteKey(ctx context.Context, req *proto.DeleteKeyReq) (*proto.D
 		if math.IsMyKey(n.ID, pred.ID, keyID) {
 			// I'm responsible for the key
 			val, keyExist, _ := n.Storage.DeleteKey(keyID)
+			go n.removeKeyOfSuccessor(pred, keyID)
+			go func() {
+				successor := n.getSuccessor()
+				n.removeKeyOfPredecessor(successor, keyID)
+			}()
 
 			return &proto.DeleteKeyResp{
 				Located:  true,
@@ -722,6 +754,9 @@ func (n *Node) TakeOverKeys(ctx context.Context, req *proto.TakeOverKeysReq) (*p
 
 func (n *Node) BackUpFromPredecessor(ctx context.Context, req *proto.BackUpFromPredecessorReq) (*proto.BackUpFromPredecessorResp, error) {
 	dataList := req.GetData()
+	n.PredecessorStorageMtx.Lock()
+	defer n.PredecessorStorageMtx.Unlock()
+	n.PredecessorStorage.Clean()
 	for _, data := range dataList {
 		id := data.GetKeyId()
 		pair := data.GetEntry()
@@ -735,6 +770,9 @@ func (n *Node) BackUpFromPredecessor(ctx context.Context, req *proto.BackUpFromP
 
 func (n *Node) BackUpFromSuccessor(ctx context.Context, req *proto.BackUpFromSuccessorReq) (*proto.BackUpFromSuccessorResp, error) {
 	dataList := req.GetData()
+	n.SuccessorStorageMtx.Lock()
+	defer n.SuccessorStorageMtx.Unlock()
+	n.SuccessorStorage.Clean()
 	for _, data := range dataList {
 		id := data.GetKeyId()
 		pair := data.GetEntry()
@@ -746,3 +784,48 @@ func (n *Node) BackUpFromSuccessor(ctx context.Context, req *proto.BackUpFromSuc
 	return &proto.BackUpFromSuccessorResp{}, nil
 }
 
+func (n *Node) DeletePredecessorReplicaKey(ctx context.Context, req *proto.DeletePredecessorReplicaKeyReq) (*proto.DeletePredecessorReplicaKeyResp, error) {
+	keyID := req.GetKeyId()
+	_, _, err := n.PredecessorStorage.DeleteKey(keyID)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.DeletePredecessorReplicaKeyResp{}, nil
+}
+
+func (n *Node) DeleteSuccessorReplicaKey(ctx context.Context, req *proto.DeleteSuccessorReplicaKeyReq) (*proto.DeleteSuccessorReplicaKeyResp, error) {
+	keyID := req.GetKeyId()
+	_, _, err := n.PredecessorStorage.DeleteKey(keyID)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.DeleteSuccessorReplicaKeyResp{}, nil
+}
+
+func (n *Node) AppendPredecessorReplica(ctx context.Context, req *proto.AppendPredecessorReplicaReq) (*proto.AppendPredecessorReplicaResp, error) {
+	keyID := req.GetKeyId()
+	entry := req.GetEntry()
+	pred := n.getPredecessor()
+	if pred != nil {
+		_ = n.PredecessorStorage.StoreKey(keyID, dto.Pair{
+			Key:   entry.GetKey(),
+			Value: entry.GetValue(),
+		})
+		return &proto.AppendPredecessorReplicaResp{}, nil
+	}
+	return &proto.AppendPredecessorReplicaResp{}, nil
+}
+
+func (n *Node) AppendSuccessorReplica(ctx context.Context, req *proto.AppendSuccessorReplicaReq) (*proto.AppendSuccessorReplicaResp, error) {
+	keyID := req.GetKeyId()
+	entry := req.GetEntry()
+	pred := n.getPredecessor()
+	if pred != nil {
+		_ = n.SuccessorStorage.StoreKey(keyID, dto.Pair{
+			Key:   entry.GetKey(),
+			Value: entry.GetValue(),
+		})
+		return &proto.AppendSuccessorReplicaResp{}, nil
+	}
+	return &proto.AppendSuccessorReplicaResp{}, nil
+}

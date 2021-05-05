@@ -19,6 +19,10 @@ service Chord {
   rpc TakeOverKeys(TakeOverKeysReq) returns(TakeOverKeysResp);
   rpc BackUpFromPredecessor(BackUpFromPredecessorReq) returns(BackUpFromPredecessorResp);
   rpc BackUpFromSuccessor(BackUpFromSuccessorReq) returns(BackUpFromSuccessorResp);
+  rpc DeletePredecessorReplicaKey(DeletePredecessorReplicaKeyReq) returns(DeletePredecessorReplicaKeyResp);
+  rpc DeleteSuccessorReplicaKey(DeleteSuccessorReplicaKeyReq) returns(DeleteSuccessorReplicaKeyResp);
+  rpc AppendPredecessorReplica(AppendPredecessorReplicaReq) returns(AppendPredecessorReplicaResp);
+  rpc AppendSuccessorReplica(AppendSuccessorReplicaReq) returns(AppendSuccessorReplicaResp);
 }
 
 message Node {
@@ -134,3 +138,30 @@ message BackUpFromSuccessorReq {
 }
 
 message BackUpFromSuccessorResp {}
+
+message DeleteSuccessorReplicaKeyReq {
+  bytes key_id = 1;
+}
+
+message DeleteSuccessorReplicaKeyResp {
+}
+
+message DeletePredecessorReplicaKeyReq {
+  bytes key_id = 1;
+}
+
+message DeletePredecessorReplicaKeyResp {}
+
+message AppendPredecessorReplicaReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message AppendPredecessorReplicaResp {}
+
+message AppendSuccessorReplicaReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message AppendSuccessorReplicaResp {}

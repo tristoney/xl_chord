@@ -12,6 +12,7 @@ type Storage interface {
 	DeleteKey([]byte) (string, bool, error)               // Delete the k-v pair
 	GetDataAsList() ([]*dto.Data, error)		// Get All Data as a slice
 	IsEmpty() bool
+	Clean()										// clean all keys of storage
 }
 
 type MappedData struct {
@@ -61,6 +62,10 @@ func (m *MappedData) GetDataAsList() ([]*dto.Data, error) {
 
 func (m *MappedData) IsEmpty() bool {
 	return len(m.data) == 0
+}
+
+func (m *MappedData) Clean() {
+	m.data = make(map[string]dto.Pair)
 }
 
 //func (m *MappedData) MDelete(keys ...string) ([]string, int, error) {

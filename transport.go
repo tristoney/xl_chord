@@ -39,6 +39,10 @@ type Transport interface {
 	TakeOverKeys(node *dto.Node, data []*dto.Data) error
 	BackUpFromPredecessor(node *dto.Node, data []*dto.Data) error
 	BackUpFromSuccessor(node *dto.Node, data []*dto.Data) error
+	DeleteSuccessorReplicaKey(node *dto.Node, keyID []byte) error
+	DeletePredecessorReplicaKey(node *dto.Node, keyID []byte) error
+	AppendPredecessorReplica(node *dto.Node, keyID []byte, key, value string) error
+	AppendSuccessorReplica(node *dto.Node, keyID []byte, key, value string) error
 }
 
 type GrpcConn struct {
@@ -562,4 +566,104 @@ func (g *GrpcTransport) Init(config *config.Config, server interface{}) error {
 	proto.RegisterChordServer(g.server, n)
 
 	return nil
+}
+
+func (g *GrpcTransport) DeleteSuccessorReplicaKey(node *dto.Node, keyID []byte) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	req := &proto.DeleteSuccessorReplicaKeyReq{KeyId: keyID}
+	_, err = client.DeleteSuccessorReplicaKey(ctx, req)
+	if err != nil {
+		retry := 1
+		for {
+			_, err = client.DeleteSuccessorReplicaKey(ctx, req)
+			if retry > 3 || err == nil {
+				break
+			}
+			retry += 1
+		}
+	}
+	return err
+}
+
+func (g *GrpcTransport) DeletePredecessorReplicaKey(node *dto.Node, keyID []byte) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	req := &proto.DeletePredecessorReplicaKeyReq{KeyId: keyID}
+	_, err = client.DeletePredecessorReplicaKey(ctx, req)
+	if err != nil {
+		retry := 1
+		for {
+			_, err = client.DeletePredecessorReplicaKey(ctx, req)
+			if retry > 3 || err == nil {
+				break
+			}
+			retry += 1
+		}
+	}
+	return err
+}
+
+func (g *GrpcTransport) AppendPredecessorReplica(node *dto.Node, keyID []byte, key, value string) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	req := &proto.AppendPredecessorReplicaReq{
+		KeyId: keyID,
+		Entry: &proto.Pair{
+			Key:   key,
+			Value: value,
+		},
+	}
+	_, err = client.AppendPredecessorReplica(ctx, req)
+	if err != nil {
+		retry := 1
+		for {
+			_, err = client.AppendPredecessorReplica(ctx, req)
+			if retry > 3 || err == nil {
+				break
+			}
+			retry += 1
+		}
+	}
+	return err
+}
+
+func (g *GrpcTransport) AppendSuccessorReplica(node *dto.Node, keyID []byte, key, value string) error {
+	client, err := g.getConnection(node.Addr)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	req := &proto.AppendSuccessorReplicaReq{
+		KeyId: keyID,
+		Entry: &proto.Pair{
+			Key:   key,
+			Value: value,
+		},
+	}
+	_, err = client.AppendSuccessorReplica(ctx, req)
+	if err != nil {
+		retry := 1
+		for {
+			_, err = client.AppendSuccessorReplica(ctx, req)
+			if retry > 3 || err == nil {
+				break
+			}
+			retry += 1
+		}
+	}
+	return err
 }

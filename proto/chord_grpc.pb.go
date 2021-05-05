@@ -30,6 +30,10 @@ type ChordClient interface {
 	TakeOverKeys(ctx context.Context, in *TakeOverKeysReq, opts ...grpc.CallOption) (*TakeOverKeysResp, error)
 	BackUpFromPredecessor(ctx context.Context, in *BackUpFromPredecessorReq, opts ...grpc.CallOption) (*BackUpFromPredecessorResp, error)
 	BackUpFromSuccessor(ctx context.Context, in *BackUpFromSuccessorReq, opts ...grpc.CallOption) (*BackUpFromSuccessorResp, error)
+	DeletePredecessorReplicaKey(ctx context.Context, in *DeletePredecessorReplicaKeyReq, opts ...grpc.CallOption) (*DeletePredecessorReplicaKeyResp, error)
+	DeleteSuccessorReplicaKey(ctx context.Context, in *DeleteSuccessorReplicaKeyReq, opts ...grpc.CallOption) (*DeleteSuccessorReplicaKeyResp, error)
+	AppendPredecessorReplica(ctx context.Context, in *AppendPredecessorReplicaReq, opts ...grpc.CallOption) (*AppendPredecessorReplicaResp, error)
+	AppendSuccessorReplica(ctx context.Context, in *AppendSuccessorReplicaReq, opts ...grpc.CallOption) (*AppendSuccessorReplicaResp, error)
 }
 
 type chordClient struct {
@@ -148,6 +152,42 @@ func (c *chordClient) BackUpFromSuccessor(ctx context.Context, in *BackUpFromSuc
 	return out, nil
 }
 
+func (c *chordClient) DeletePredecessorReplicaKey(ctx context.Context, in *DeletePredecessorReplicaKeyReq, opts ...grpc.CallOption) (*DeletePredecessorReplicaKeyResp, error) {
+	out := new(DeletePredecessorReplicaKeyResp)
+	err := c.cc.Invoke(ctx, "/Chord/DeletePredecessorReplicaKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) DeleteSuccessorReplicaKey(ctx context.Context, in *DeleteSuccessorReplicaKeyReq, opts ...grpc.CallOption) (*DeleteSuccessorReplicaKeyResp, error) {
+	out := new(DeleteSuccessorReplicaKeyResp)
+	err := c.cc.Invoke(ctx, "/Chord/DeleteSuccessorReplicaKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) AppendPredecessorReplica(ctx context.Context, in *AppendPredecessorReplicaReq, opts ...grpc.CallOption) (*AppendPredecessorReplicaResp, error) {
+	out := new(AppendPredecessorReplicaResp)
+	err := c.cc.Invoke(ctx, "/Chord/AppendPredecessorReplica", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordClient) AppendSuccessorReplica(ctx context.Context, in *AppendSuccessorReplicaReq, opts ...grpc.CallOption) (*AppendSuccessorReplicaResp, error) {
+	out := new(AppendSuccessorReplicaResp)
+	err := c.cc.Invoke(ctx, "/Chord/AppendSuccessorReplica", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChordServer is the server API for Chord service.
 // All implementations should embed UnimplementedChordServer
 // for forward compatibility
@@ -164,6 +204,10 @@ type ChordServer interface {
 	TakeOverKeys(context.Context, *TakeOverKeysReq) (*TakeOverKeysResp, error)
 	BackUpFromPredecessor(context.Context, *BackUpFromPredecessorReq) (*BackUpFromPredecessorResp, error)
 	BackUpFromSuccessor(context.Context, *BackUpFromSuccessorReq) (*BackUpFromSuccessorResp, error)
+	DeletePredecessorReplicaKey(context.Context, *DeletePredecessorReplicaKeyReq) (*DeletePredecessorReplicaKeyResp, error)
+	DeleteSuccessorReplicaKey(context.Context, *DeleteSuccessorReplicaKeyReq) (*DeleteSuccessorReplicaKeyResp, error)
+	AppendPredecessorReplica(context.Context, *AppendPredecessorReplicaReq) (*AppendPredecessorReplicaResp, error)
+	AppendSuccessorReplica(context.Context, *AppendSuccessorReplicaReq) (*AppendSuccessorReplicaResp, error)
 }
 
 // UnimplementedChordServer should be embedded to have forward compatible implementations.
@@ -205,6 +249,18 @@ func (UnimplementedChordServer) BackUpFromPredecessor(context.Context, *BackUpFr
 }
 func (UnimplementedChordServer) BackUpFromSuccessor(context.Context, *BackUpFromSuccessorReq) (*BackUpFromSuccessorResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackUpFromSuccessor not implemented")
+}
+func (UnimplementedChordServer) DeletePredecessorReplicaKey(context.Context, *DeletePredecessorReplicaKeyReq) (*DeletePredecessorReplicaKeyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeletePredecessorReplicaKey not implemented")
+}
+func (UnimplementedChordServer) DeleteSuccessorReplicaKey(context.Context, *DeleteSuccessorReplicaKeyReq) (*DeleteSuccessorReplicaKeyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteSuccessorReplicaKey not implemented")
+}
+func (UnimplementedChordServer) AppendPredecessorReplica(context.Context, *AppendPredecessorReplicaReq) (*AppendPredecessorReplicaResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppendPredecessorReplica not implemented")
+}
+func (UnimplementedChordServer) AppendSuccessorReplica(context.Context, *AppendSuccessorReplicaReq) (*AppendSuccessorReplicaResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AppendSuccessorReplica not implemented")
 }
 
 // UnsafeChordServer may be embedded to opt out of forward compatibility for this service.
@@ -434,6 +490,78 @@ func _Chord_BackUpFromSuccessor_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Chord_DeletePredecessorReplicaKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeletePredecessorReplicaKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).DeletePredecessorReplicaKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/DeletePredecessorReplicaKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).DeletePredecessorReplicaKey(ctx, req.(*DeletePredecessorReplicaKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Chord_DeleteSuccessorReplicaKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteSuccessorReplicaKeyReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).DeleteSuccessorReplicaKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/DeleteSuccessorReplicaKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).DeleteSuccessorReplicaKey(ctx, req.(*DeleteSuccessorReplicaKeyReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Chord_AppendPredecessorReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppendPredecessorReplicaReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).AppendPredecessorReplica(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/AppendPredecessorReplica",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).AppendPredecessorReplica(ctx, req.(*AppendPredecessorReplicaReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Chord_AppendSuccessorReplica_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppendSuccessorReplicaReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordServer).AppendSuccessorReplica(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Chord/AppendSuccessorReplica",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordServer).AppendSuccessorReplica(ctx, req.(*AppendSuccessorReplicaReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Chord_ServiceDesc is the grpc.ServiceDesc for Chord service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -488,6 +616,22 @@ var Chord_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BackUpFromSuccessor",
 			Handler:    _Chord_BackUpFromSuccessor_Handler,
+		},
+		{
+			MethodName: "DeletePredecessorReplicaKey",
+			Handler:    _Chord_DeletePredecessorReplicaKey_Handler,
+		},
+		{
+			MethodName: "DeleteSuccessorReplicaKey",
+			Handler:    _Chord_DeleteSuccessorReplicaKey_Handler,
+		},
+		{
+			MethodName: "AppendPredecessorReplica",
+			Handler:    _Chord_AppendPredecessorReplica_Handler,
+		},
+		{
+			MethodName: "AppendSuccessorReplica",
+			Handler:    _Chord_AppendSuccessorReplica_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

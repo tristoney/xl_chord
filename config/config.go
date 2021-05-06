@@ -9,7 +9,7 @@ import (
 
 // Config is the configuration of a Node, include gRPC options and hash function to use
 type Config struct {
-	ID   string
+	ID   []byte
 	Addr string
 
 	HashFunc func() hash.Hash
@@ -29,7 +29,6 @@ func (c *Config) Validate() error {
 
 func DefaultConfig() *Config {
 	return &Config{
-		ID:            "",
 		Addr:          "",
 		HashFunc:      sha1.New,
 		HashSize:      sha1.Size * 8, // hash.Hash.Size() returns the the number of bytes

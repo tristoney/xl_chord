@@ -3,6 +3,7 @@ package xl_chord
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/tristoney/xl_chord/config"
 	"github.com/tristoney/xl_chord/dto"
 	"github.com/tristoney/xl_chord/proto"
@@ -205,14 +206,14 @@ func (g *GrpcTransport) Stop() error {
 func (g *GrpcTransport) CheckAlive(node *dto.Node) error {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
-		log.Logf(log.ERROR, "Node {%s} has failed", string(node.ID))
+		log.Logf(log.ERROR, "Node {%s} has failed", node)
 		return chorderr.ErrNodeFailed
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
 	pong, err := client.CheckAlive(ctx, &proto.CheckAliveReq{})
 	if err != nil || pong == nil {
-		log.Logf(log.ERROR, "Node {%s} has failed", string(node.ID))
+		log.Logf(log.ERROR, "Node {%s} has failed", node)
 		return chorderr.ErrNodeFailed
 	}
 	return nil
@@ -252,6 +253,7 @@ func (g *GrpcTransport) FindSuccessor(node *dto.Node, id []byte) (*dto.Node, err
 }
 
 func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
+	fmt.Printf("GetPredecessor for node %s\n", node)
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return nil, err
@@ -268,7 +270,7 @@ func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
 	}
 	sender := g.sender
 	successor := sender.getSuccessor()
-	if bytes.Equal(pred.Id, g.sender.ID) && math.Between(pred.Id, sender.ID, successor.ID) {
+	if !bytes.Equal(pred.Id, g.sender.ID) && math.Between(pred.Id, sender.ID, successor.ID) {
 		log.Logf(log.INFO, "Node %s GetPredResp: Had successor Node %s, it's predecessor is Node %s, Change successor to Node %s",
 			sender.Node, successor, pred, pred)
 		sender.updateSuccessorAndSuccessorList(&dto.Node{
@@ -288,6 +290,7 @@ func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
 }
 
 func (g *GrpcTransport) Notify(node *dto.Node, pred *dto.Node) error {
+	fmt.Printf("Notify Node:%s\n", node)
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return err
@@ -325,7 +328,7 @@ func (g *GrpcTransport) FindSuccessorFinger(node *dto.Node, index int32, fingerI
 		log.Logf(log.INFO, "Found node for finger_id %d: Node %s", math.ToBig(fingerID), nextNode)
 		return node, nil
 	} else {
-		log.Logf(log.INFO, "Did not get entry for finger %d (%d) yet, asking Node %s now...", math.ToBig(fingerID), index, nextNode)
+		//log.Logf(log.INFO, "Did not get entry for finger %d (%d) yet, asking Node %s now...", math.ToBig(fingerID), index, nextNode)
 		n, err := g.FindSuccessorFinger(nextNode, index, fingerID)
 		if err != nil {
 			return nil, err

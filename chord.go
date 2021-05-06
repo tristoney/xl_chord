@@ -36,7 +36,7 @@ func init() {
 	FingerTableSize = ChordCircleBits
 	SuccessorListSize = 8
 	two := (&big.Int{}).SetInt64(2)
-	m := (&big.Int{}).SetInt64(int64(ChordCircleBits))
+	m := (&big.Int{}).SetInt64(int64(20))
 	ChordRingSize = (&big.Int{}).Exp(two, m, nil)
 	NodeStabilizeInterval = 2000 * time.Millisecond
 	NodeFixFingersInterval = 500 * time.Millisecond
@@ -90,10 +90,10 @@ type Node struct {
 
 func NewNode(addr string, cnf *config.Config) (*Node, error) {
 	id := math.GetHashKey(addr, cnf.HashFunc)
-	grpcTransport, err := NewGrpcTransport(cnf)
-	if err != nil {
-		return nil, err
-	}
+
+	cnf.ID = id
+	cnf.Addr = addr
+	grpcTransport := new(GrpcTransport)
 	node := &Node{
 		Node: &dto.Node{
 			ID:   id,
@@ -117,6 +117,7 @@ func NewNode(addr string, cnf *config.Config) (*Node, error) {
 		shutDownCh:            make(chan struct{}),
 		Joined:                false,
 	}
+
 	node.Transport.SetSender(node)
 	return node, nil
 }
@@ -129,10 +130,9 @@ func NewFirst(addr string, cnf *config.Config) (*Node, error) {
 	}
 	successorList := make([]*dto.Node, 0, SuccessorListSize)
 	successorList = append(successorList, &successor)
-	grpcTransport, err := NewGrpcTransport(cnf)
-	if err != nil {
-		return nil, err
-	}
+	cnf.ID = id
+	cnf.Addr = addr
+	grpcTransport := new(GrpcTransport)
 	node := &Node{
 		Node: &dto.Node{
 			ID:   id,
@@ -169,17 +169,14 @@ func (n *Node) getSuccessor() *dto.Node {
 }
 
 func (n *Node) getPredecessor() *dto.Node {
-	return &dto.Node{
-		ID:   n.Predecessor.ID,
-		Addr: n.Predecessor.Addr,
-	}
+	return n.Predecessor
 }
 
 func (n *Node) getSuccessorList() []*dto.Node {
 	list := make([]*dto.Node, 0, SuccessorListSize)
 	n.SuccessorListMtx.RLock()
 	defer n.SuccessorListMtx.RUnlock()
-	copy(list, n.SuccessorList)
+	list = append(list, n.SuccessorList...)
 	return list
 }
 
@@ -257,7 +254,6 @@ func (n *Node) stabilize() {
 	log.Logln(log.INFO, "Stabilizing...")
 	if n.Joined {
 		ringAlive := false
-		n.SuccessorListMtx.RLock()
 		for _, successor := range n.getSuccessorList() {
 			if err := n.Transport.CheckAlive(successor); err == nil {
 				n.updateSuccessorAndSuccessorList(successor)
@@ -266,6 +262,7 @@ func (n *Node) stabilize() {
 					return
 				}
 				ringAlive = true
+				log.Logf(log.INFO, "In Stabilizing, Node %s is Alive", successor)
 				break
 			} else {
 				log.Logf(log.INFO, "Node %s is DEAD", successor)
@@ -281,14 +278,14 @@ func (n *Node) stabilize() {
 }
 
 func (n *Node) fixFingers(next int) int {
-	nextNum := (next + 1) % n.Cnf.HashSize
+	nextNum := (next + 1) % 20
 	if n.Joined {
-		fingerID := fingerTable.GetID(n.ID, next, n.Cnf.HashSize)
-		finger, err := n.Transport.FindSuccessorFinger(n.getSuccessor(), int32(next), fingerID)
+		fingerID := fingerTable.GetID(n.ID, next, 20)
+		finger, err := n.Transport.FindSuccessor(n.getSuccessor(), fingerID)
 		if err != nil {
 			return nextNum
 		}
-		n.FingerTable.Put(nextNum, fingerID, *finger)
+		n.FingerTable.Put(next, fingerID, *finger)
 		return nextNum
 	} else {
 		log.Logf(log.INFO, "Not joined yet, gonna sleep again")
@@ -299,6 +296,10 @@ func (n *Node) fixFingers(next int) int {
 func (n *Node) checkPredecessor() {
 	if n.Joined {
 		pred := n.getPredecessor()
+		if pred == nil {
+			log.Logf(log.INFO, "No Predecessor, wait for notify")
+			return
+		}
 		if err := n.Transport.CheckAlive(pred); err != nil {
 			log.Logf(log.INFO, "Predecessor Node %s is dead", pred)
 			n.setPredecessor(nil)
@@ -437,13 +438,13 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 	var err error
 	if peerAddr != "" {
 		log.Logln(log.INFO, "Spawn node and join")
-		node, err = NewNode(addr, defaultCnf)
+		node, err = NewNode(addr, config.DefaultConfig())
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		log.Logln(log.INFO, "Spawn master node.")
-		node, err = NewFirst(addr, defaultCnf)
+		node, err = NewFirst(addr, config.DefaultConfig())
 		if err != nil {
 			return nil, err
 		}

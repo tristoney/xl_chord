@@ -21,7 +21,7 @@ type FingerTable struct {
 	Entries []*Finger
 }
 
-func (f Finger) String() string {
+func (f *Finger) String() string {
 	return fmt.Sprintf("%s->%s", math.ToBig(f.ID), f.Successor)
 }
 
@@ -65,13 +65,13 @@ func NewFinger(id []byte, node dto.Node) Finger {
 
 // NewFingerTable returns a new FingerTable of the given node with default successor (nil)
 func NewFingerTable(nodeID []byte, hashSize int) FingerTable {
-	return FingerTable{nodeID, make([]*Finger, 0, hashSize)}
+	return FingerTable{nodeID, make([]*Finger, 0, 20)}
 }
 
 func NewFirst(nodeID []byte, successor dto.Node, hashSize int) FingerTable {
-	entries := make([]*Finger, 0, hashSize)
+	entries := make([]*Finger, 0, 20)
 	entries = append(entries, &Finger{
-		ID:        GetID(nodeID, 0, hashSize),
+		ID:        GetID(nodeID, 0, 20),
 		Successor: successor,
 	})
 	return FingerTable{

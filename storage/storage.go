@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/tristoney/xl_chord/dto"
 	"github.com/tristoney/xl_chord/util/chorderr"
+	"github.com/tristoney/xl_chord/util/math"
 	"hash"
 )
 
@@ -18,6 +20,20 @@ type Storage interface {
 type MappedData struct {
 	data     map[string]dto.Pair
 	HashFunc func() hash.Hash
+}
+
+func (m *MappedData) String() string {
+	list, _ := m.GetDataAsList()
+	res := "["
+	for i, pair := range list {
+		if i != len(list) - 1 {
+			res += fmt.Sprintf("ID:%d %s -> %s\n", math.ToBig(pair.KeyID), pair.Key, pair.Value)
+		} else {
+			res += fmt.Sprintf("ID:%d %s -> %s", math.ToBig(pair.KeyID), pair.Key, pair.Value)
+		}
+	}
+	res += "]\n"
+	return res
 }
 
 func NewMappedData(hashFunc func() hash.Hash) *MappedData {

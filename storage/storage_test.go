@@ -30,7 +30,7 @@ func TestMappedData(t *testing.T) {
 	fmt.Println(TestMap.GetKey(math.GetHashKey("2", h)))
 	list, _ := TestMap.GetDataAsList()
 	fmt.Println(list)
-	s, err := TestMap.DeleteKey(math.GetHashKey("2", h))
+	s,_, err := TestMap.DeleteKey(math.GetHashKey("2", h))
 	if err != nil {
 		return
 	} else {

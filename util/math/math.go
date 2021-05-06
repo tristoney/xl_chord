@@ -41,7 +41,15 @@ func GetHashKey(key string, hashFunc func() hash.Hash) []byte {
 		return nil
 	}
 	val := h.Sum(nil)
-	return val
+
+	valBig := (&big.Int{}).SetBytes(val)
+
+	two := big.NewInt(2)
+
+	mod := (&big.Int{}).Exp(two, big.NewInt(int64(20)), nil) // 2^m
+
+	res := (&big.Int{}).Mod(valBig, mod).Bytes() // (n+2^i) mod 2^m
+	return res
 }
 
 func ToBig(n []byte) *big.Int {
@@ -53,10 +61,10 @@ func IsMyKey(nodeID, predID, keyID []byte) bool {
 }
 
 func BigMax(byteNum int) *big.Int {
-	max := make([]byte, byteNum)
-	for i, _ := range max {
-		max[i] = 255
-	}
-	return (&big.Int{}).SetBytes(max)
+	two := (&big.Int{}).SetInt64(2)
+	one := (&big.Int{}).SetInt64(1)
+	m := (&big.Int{}).SetInt64(int64(20))
+	max := (&big.Int{}).Exp(two, m, nil)
+	return (&big.Int{}).Sub(max, one)
 }
 

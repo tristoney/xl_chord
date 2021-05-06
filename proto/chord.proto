@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+option go_package = "github.com/tristoney/xl_chord/proto";
+
+// Chord is a service for the nodes to communicate,
+// which includes all the method needed to maintain
+// a Chord cluster via RPC (remote procedure call)
+
+service Chord {
+  rpc CheckAlive(CheckAliveReq) returns (CheckAliveResp);
+  rpc FindSuccessor(FindSuccessorReq) returns (FindSuccessorResp);
+  rpc GetPredecessor(GetPredecessorReq) returns(GetPredecessorResp);
+  rpc Notify(NotifyReq) returns(NotifyResp);
+  rpc FindSuccessorFinger(FindSuccessorFingerReq) returns(FindSuccessorFingerResp);
+  rpc GetSuccessorList(GetSuccessorListReq) returns(GetSuccessorListResp);
+  rpc StoreKey(StoreKeyReq) returns(StoreKeyResp);
+  rpc FindKey(FindKeyReq) returns(FindKeyResp);
+  rpc DeleteKey(DeleteKeyReq) returns(DeleteKeyResp);
+  rpc TakeOverKeys(TakeOverKeysReq) returns(TakeOverKeysResp);
+  rpc BackUpFromPredecessor(BackUpFromPredecessorReq) returns(BackUpFromPredecessorResp);
+  rpc BackUpFromSuccessor(BackUpFromSuccessorReq) returns(BackUpFromSuccessorResp);
+  rpc DeletePredecessorReplicaKey(DeletePredecessorReplicaKeyReq) returns(DeletePredecessorReplicaKeyResp);
+  rpc DeleteSuccessorReplicaKey(DeleteSuccessorReplicaKeyReq) returns(DeleteSuccessorReplicaKeyResp);
+  rpc AppendPredecessorReplica(AppendPredecessorReplicaReq) returns(AppendPredecessorReplicaResp);
+  rpc AppendSuccessorReplica(AppendSuccessorReplicaReq) returns(AppendSuccessorReplicaResp);
+}
+
+message Node {
+  bytes id = 1;
+  string addr = 2;
+}
+
+message CheckAliveReq {}
+
+message CheckAliveResp {
+  string pong = 1;
+}
+
+message FindSuccessorReq {
+  bytes id = 1;
+}
+
+message FindSuccessorResp {
+  Node successor = 1;
+  bool found = 2;
+  Node next_node = 3;
+}
+
+message GetPredecessorReq {
+}
+
+message GetPredecessorResp {
+  Node predecessor = 1;
+}
+
+message NotifyReq {
+  Node node = 1;
+}
+
+message NotifyResp {}
+
+message FindSuccessorFingerReq {
+  int32 index = 1;
+  bytes finger_id = 2;
+}
+
+message FindSuccessorFingerResp {
+  int32 index = 1;
+  bytes finger_id = 2;
+  bool found = 3;
+  Node next_node = 4; // if found, next_node is the target node, otherwise it's the next_node to query finger table
+}
+
+message GetSuccessorListReq {
+}
+
+message GetSuccessorListResp {
+  repeated Node successor_list = 1;
+}
+
+message Pair {
+  string key = 1;
+  string value = 2;
+}
+
+message Data {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message StoreKeyReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message StoreKeyResp {
+  bool located = 1; // true if the key is located the right place, false if key needs to be pass to next
+  Node next_node = 2;
+}
+
+message FindKeyReq {
+  bytes key_id = 1;
+}
+
+message FindKeyResp {
+  bool located = 1;
+  bytes key_id = 2;
+  Pair entry = 3;
+  Node next_node = 4;
+}
+
+message DeleteKeyReq {
+  bytes key_id = 1;
+}
+
+message DeleteKeyResp {
+  bool located = 1;
+  bool key_exist = 2;
+  bytes key_id = 3;
+  string value = 4;
+  Node next_node = 5;
+}
+
+message TakeOverKeysReq {
+  repeated Data data = 1;
+}
+
+message TakeOverKeysResp {}
+
+message BackUpFromPredecessorReq {
+  repeated Data data = 1;
+}
+
+message BackUpFromPredecessorResp {}
+
+message BackUpFromSuccessorReq {
+  repeated Data data = 1;
+}
+
+message BackUpFromSuccessorResp {}
+
+message DeleteSuccessorReplicaKeyReq {
+  bytes key_id = 1;
+}
+
+message DeleteSuccessorReplicaKeyResp {
+}
+
+message DeletePredecessorReplicaKeyReq {
+  bytes key_id = 1;
+}
+
+message DeletePredecessorReplicaKeyResp {}
+
+message AppendPredecessorReplicaReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message AppendPredecessorReplicaResp {}
+
+message AppendSuccessorReplicaReq {
+  bytes key_id = 1;
+  Pair entry = 2;
+}
+
+message AppendSuccessorReplicaResp {}

@@ -34,7 +34,7 @@ type Transport interface {
 	GetSuccessorList(node *dto.Node) ([]*dto.Node, error)
 
 	// storage access
-	StoreKey(node *dto.Node, keyID []byte, key, value string) (string, error)
+	StoreKey(node *dto.Node, keyID []byte, key, value string, doNotDebug bool) (string, error)
 	FindKey(node *dto.Node, keyID []byte, key string) (string, error)
 	DeleteKey(node *dto.Node, keyID []byte, key string) (string, bool, error)
 	TakeOverKeys(node *dto.Node, data []*dto.Data) error
@@ -265,28 +265,29 @@ func (g *GrpcTransport) GetPredecessor(node *dto.Node) (*dto.Node, error) {
 		return nil, err
 	}
 	pred := resp.Predecessor
-	if pred == nil {
+	sender := g.sender
+	if pred != nil {
+		successor := sender.getSuccessor()
+		if !bytes.Equal(pred.Id, g.sender.ID) && math.Between(pred.Id, sender.ID, successor.ID) {
+			log.Logf(log.INFO, "Node %s GetPredResp: Had successor Node %s, it's predecessor is Node %s, Change successor to Node %s",
+				sender.Node, successor, pred, pred)
+			sender.updateSuccessorAndSuccessorList(&dto.Node{
+				ID:   pred.Id,
+				Addr: pred.Addr,
+			})
+		}
+		return &dto.Node{
+			ID:   pred.GetId(),
+			Addr: pred.GetAddr(),
+		}, nil
+	} else {
 		return nil, chorderr.ErrPredecessorNotExist
 	}
-	sender := g.sender
-	successor := sender.getSuccessor()
-	if !bytes.Equal(pred.Id, g.sender.ID) && math.Between(pred.Id, sender.ID, successor.ID) {
-		log.Logf(log.INFO, "Node %s GetPredResp: Had successor Node %s, it's predecessor is Node %s, Change successor to Node %s",
-			sender.Node, successor, pred, pred)
-		sender.updateSuccessorAndSuccessorList(&dto.Node{
-			ID:   pred.Id,
-			Addr: pred.Addr,
-		})
-	}
-	successor = sender.getSuccessor()
-
-	if err := sender.Transport.Notify(successor, sender.Node); err != nil {
-		return nil, err
-	}
-	return &dto.Node{
-		ID:   pred.GetId(),
-		Addr: pred.GetAddr(),
-	}, nil
+	//successor := sender.getSuccessor()
+	//
+	//if err := sender.Transport.Notify(successor, sender.Node); err != nil {
+	//	return nil, err
+	//}
 }
 
 func (g *GrpcTransport) Notify(node *dto.Node, pred *dto.Node) error {
@@ -358,7 +359,7 @@ func (g *GrpcTransport) GetSuccessorList(node *dto.Node) ([]*dto.Node, error) {
 	return successorList, nil
 }
 
-func (g *GrpcTransport) StoreKey(node *dto.Node, keyID []byte, key, value string) (string, error) {
+func (g *GrpcTransport) StoreKey(node *dto.Node, keyID []byte, key, value string, doNotDebug bool) (string, error) {
 	client, err := g.getConnection(node.Addr)
 	if err != nil {
 		return "", err
@@ -385,8 +386,10 @@ func (g *GrpcTransport) StoreKey(node *dto.Node, keyID []byte, key, value string
 			ID:   nextNode.Id,
 			Addr: nextNode.Addr,
 		}
-		log.Logf(log.DEBUG, "Did not store {key: %s value: %s} yet, asking Node %s now...", key, value, n)
-		k, err := g.StoreKey(n, keyID, key, value)
+		if !doNotDebug {
+			log.Logf(log.DEBUG, "Did not store {key: %s value: %s} yet, asking Node %s now...", key, value, n)
+		}
+		k, err := g.StoreKey(n, keyID, key, value, doNotDebug)
 		if err != nil {
 			return "", err
 		}
@@ -506,7 +509,7 @@ func (g *GrpcTransport) BackUpFromPredecessor(node *dto.Node, data []*dto.Data) 
 			},
 		})
 	}
-	_, err = client.TakeOverKeys(ctx, &proto.TakeOverKeysReq{
+	_, err = client.BackUpFromPredecessor(ctx, &proto.BackUpFromPredecessorReq{
 		Data: reqData,
 	})
 	if err != nil {
@@ -532,7 +535,7 @@ func (g *GrpcTransport) BackUpFromSuccessor(node *dto.Node, data []*dto.Data) er
 			},
 		})
 	}
-	_, err = client.TakeOverKeys(ctx, &proto.TakeOverKeysReq{
+	_, err = client.BackUpFromSuccessor(ctx, &proto.BackUpFromSuccessorReq{
 		Data: reqData,
 	})
 	if err != nil {

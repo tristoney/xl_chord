@@ -7,6 +7,9 @@ import (
 
 func (n *Node) FindKeyAPI(key string) (string, error) {
 	keyID := math.GetHashKey(key, n.Cnf.HashFunc)
+	if val, _ := n.Storage.GetKey(keyID); val != nil{
+		return val.Value, nil
+	}
 	val, err := n.Transport.FindKey(n.Node, keyID, key)
 	if err != nil {
 		return "", err
@@ -16,7 +19,7 @@ func (n *Node) FindKeyAPI(key string) (string, error) {
 
 func (n *Node) StoreKeyAPI(key, value string) error {
 	keyID := math.GetHashKey(key, n.Cnf.HashFunc)
-	_, err := n.Transport.StoreKey(n.Node, keyID, key, value)
+	_, err := n.Transport.StoreKey(n.Node, keyID, key, value, false)
 	if err != nil {
 		return err
 	}

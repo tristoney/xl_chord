@@ -19,6 +19,7 @@ func main() {
 	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+	_ = node.StoreKeyAPI("2", "two")
 	shut := make(chan bool)
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)

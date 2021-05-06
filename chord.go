@@ -48,11 +48,29 @@ func init() {
 func ChordAbs(a, b []byte) *big.Int {
 	aInt := math.ToBig(a)
 	bInt := math.ToBig(b)
+	defer func() {
+
+		if r := recover(); r != nil {
+
+			log.Logln(log.ERROR, "Recovered in testPanic2Error")
+
+			//check exactly what the panic was and create error.
+			switch r.(type) {
+			case error:
+				log.Logf(log.ERROR, "panic in ChordAbs, a %d b %d\n", aInt, bInt)
+			default:
+				log.Logf(log.ERROR, "panic in ChordAbs, a %d b %d\n", aInt, bInt)
+			}
+		}
+
+	}()
 	if aInt.Cmp(bInt) == -1 {
 		// a < b
 		first := (&big.Int{}).Sub(ChordRingSize, bInt)
 		res := (&big.Int{}).Add(first, aInt)
 		return res
+	} else if aInt.Cmp(bInt) == 0{
+		return (&big.Int{}).SetInt64(0)
 	} else {
 		return (&big.Int{}).Sub(aInt, bInt)
 	}
@@ -241,9 +259,21 @@ func (n *Node) updateSuccessorAndSuccessorList(successor *dto.Node) {
 	newList := make([]*dto.Node, 0, SuccessorListSize)
 	newList = append(newList, n.getSuccessor())
 	if len(list) == SuccessorListSize {
-		newList = append(newList, list[:len(list)-1]...)
+		//newList = append(newList, list[:len(list)-1]...)
+		for _, node := range list[:len(list)-1] {
+			if bytes.Equal(n.ID, node.ID) {
+				break
+			}
+			newList = append(newList, node)
+		}
 	} else {
-		newList = append(newList, list...)
+		//newList = append(newList, list...)
+		for _, node := range list {
+			if bytes.Equal(n.ID, node.ID) {
+				break
+			}
+			newList = append(newList, node)
+		}
 	}
 	n.SuccessorListMtx.Lock()
 	n.SuccessorList = newList
@@ -257,9 +287,28 @@ func (n *Node) stabilize() {
 		for _, successor := range n.getSuccessorList() {
 			if err := n.Transport.CheckAlive(successor); err == nil {
 				n.updateSuccessorAndSuccessorList(successor)
-				_, err := n.Transport.GetPredecessor(successor)
-				if err == nil {
-					return
+				pred, _ := n.Transport.GetPredecessor(successor)
+				if pred != nil {
+					successor := n.getSuccessor()
+					if !bytes.Equal(pred.ID, n.ID) && math.Between(pred.ID, n.ID, successor.ID) {
+						log.Logf(log.INFO, "Node %s GetPredResp: Had successor Node %s, it's predecessor is Node %s, Change successor to Node %s",
+							n.Node, successor, pred, pred)
+						n.updateSuccessorAndSuccessorList(&dto.Node{
+							ID:   pred.ID,
+							Addr: pred.Addr,
+						})
+					}
+				}
+				successor := n.getSuccessor()
+
+				var notifyErr error
+				retry := 0
+				for {
+					notifyErr = n.Transport.Notify(successor, n.Node)
+					if retry > 3 || notifyErr == nil {
+						break
+					}
+					retry += 1
 				}
 				ringAlive = true
 				log.Logf(log.INFO, "In Stabilizing, Node %s is Alive", successor)
@@ -383,7 +432,7 @@ func (n *Node) checkRedistributeKeys(pred *dto.Node) {
 		keyID := data.KeyID
 		pair := data.Pair
 		if !math.IsMyKey(n.ID, pred.ID, keyID) {
-			key, err := n.Transport.StoreKey(pred, keyID, pair.Key, pair.Value)
+			key, err := n.Transport.StoreKey(pred, keyID, pair.Key, pair.Value, true)
 			if err != nil {
 				return
 			}
@@ -470,6 +519,7 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 
 	go func() {
 		ticker := time.NewTicker(NodeStabilizeInterval)
+		node.stabilize()
 		for {
 			select {
 			case <-ticker.C:
@@ -484,6 +534,7 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 	go func() {
 		next := 0
 		ticker := time.NewTicker(NodeFixFingersInterval)
+		next = node.fixFingers(next)
 		for {
 			select {
 			case <-ticker.C:
@@ -497,6 +548,7 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 
 	go func() {
 		ticker := time.NewTicker(NodeCheckPredecessorInterval)
+		node.checkPredecessor()
 		for {
 			select {
 			case <-ticker.C:
@@ -510,6 +562,7 @@ func SpawnNode(addr string, peerAddr string) (*Node, error) {
 
 	go func() {
 		ticker := time.NewTicker(ReplicaBackUpInterval)
+		node.replicaBackup()
 		for {
 			select {
 			case <-ticker.C:
